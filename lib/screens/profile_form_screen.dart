@@ -25,6 +25,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   bool _hepaticDisease = false;
   bool _diabetes = false;
   bool _hypertension = false;
+  List<String> _allergies = [];
+  List<String> _medicalRestrictions = [];
+  ProfileType _category = ProfileType.adult;
 
   @override
   void initState() {
@@ -39,6 +42,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
       _hepaticDisease = profile.hepaticDisease;
       _diabetes = profile.diabetes;
       _hypertension = profile.hypertension;
+      _allergies = List.from(profile.allergies);
+      _medicalRestrictions = List.from(profile.medicalRestrictions);
+      _category = profile.category;
     }
   }
 
@@ -102,6 +108,34 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
               border: OutlineInputBorder(),
             ),
             keyboardType: TextInputType.number,
+            onChanged: (value) {
+              // Auto-suggest category based on age
+              final age = int.tryParse(value);
+              if (age != null && widget.profile == null) {
+                setState(() {
+                  _category = ProfileType.fromAge(age);
+                });
+              }
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<ProfileType>(
+            value: _category,
+            decoration: const InputDecoration(
+              labelText: 'Profile Category',
+              border: OutlineInputBorder(),
+            ),
+            items: ProfileType.values
+                .map((type) => DropdownMenuItem(
+                      value: type,
+                      child: Text(type.displayName),
+                    ))
+                .toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _category = value);
+              }
+            },
           ),
           const SizedBox(height: 12),
           const Text(
@@ -138,6 +172,84 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
             ),
             maxLines: 3,
           ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Allergies',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _addAllergy,
+                icon: const Icon(Icons.add),
+                label: const Text('Add'),
+              ),
+            ],
+          ),
+          if (_allergies.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No allergies recorded',
+                style: TextStyle(color: Colors.grey),
+              ),
+            )
+          else
+            ..._allergies.asMap().entries.map((entry) {
+              final index = entry.key;
+              final allergy = entry.value;
+              return Card(
+                key: ValueKey('allergy_$index'),
+                child: ListTile(
+                  title: Text(allergy),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => _removeAllergy(allergy),
+                  ),
+                ),
+              );
+            }),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Medical Restrictions',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _addMedicalRestriction,
+                icon: const Icon(Icons.add),
+                label: const Text('Add'),
+              ),
+            ],
+          ),
+          if (_medicalRestrictions.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No restrictions recorded',
+                style: TextStyle(color: Colors.grey),
+              ),
+            )
+          else
+            ..._medicalRestrictions.asMap().entries.map((entry) {
+              final index = entry.key;
+              final restriction = entry.value;
+              return Card(
+                key: ValueKey('restriction_$index'),
+                child: ListTile(
+                  title: Text(restriction),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => _removeMedicalRestriction(restriction),
+                  ),
+                ),
+              );
+            }),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _saveProfile,
@@ -183,6 +295,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         diabetes: _diabetes,
         hypertension: _hypertension,
         healthIssues: healthIssues,
+        allergies: _allergies,
+        medicalRestrictions: _medicalRestrictions,
+        category: _category,
       );
       await store.add(newProfile);
     } else {
@@ -195,6 +310,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         diabetes: _diabetes,
         hypertension: _hypertension,
         healthIssues: healthIssues,
+        allergies: _allergies,
+        medicalRestrictions: _medicalRestrictions,
+        category: _category,
       );
       await store.update(updated);
     }
@@ -203,6 +321,89 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
       return;
     }
     Navigator.pop(context);
+  }
+
+  Future<void> _addAllergy() async {
+    final controller = TextEditingController();
+    final allergy = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Allergy'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: 'e.g., Penicillin, Pollen, Shellfish',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true,
+            onChanged: (_) => setDialogState(() {}),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: controller.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (allergy != null && allergy.isNotEmpty && !_allergies.contains(allergy)) {
+      setState(() => _allergies.add(allergy));
+    }
+  }
+
+  void _removeAllergy(String allergy) {
+    setState(() => _allergies.remove(allergy));
+  }
+
+  Future<void> _addMedicalRestriction() async {
+    final controller = TextEditingController();
+    final restriction = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Medical Restriction'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: 'e.g., Cannot swallow pills, Lactose intolerant',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true,
+            maxLines: 2,
+            onChanged: (_) => setDialogState(() {}),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: controller.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (restriction != null && restriction.isNotEmpty && !_medicalRestrictions.contains(restriction)) {
+      setState(() => _medicalRestrictions.add(restriction));
+    }
+  }
+
+  void _removeMedicalRestriction(String restriction) {
+    setState(() => _medicalRestrictions.remove(restriction));
   }
 
   ImageProvider? _photoProvider() {
