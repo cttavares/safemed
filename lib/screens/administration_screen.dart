@@ -41,7 +41,7 @@ class AdministrationScreen extends StatelessWidget {
               final profile = occurrence.profile;
               final time = _formatTime(occurrence.scheduledAt);
               final subtitle =
-                  '${profile.name} | ${occurrence.medication.name}';
+                  '${profile.name} | ${occurrence.plan.name} | ${occurrence.medication.name}';
 
               return Card(
                 child: ListTile(

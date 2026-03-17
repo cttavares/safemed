@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:safemed/services/alert_store.dart';
+import 'package:safemed/services/medication_history_store.dart';
 import 'package:safemed/services/plan_store.dart';
 import 'package:safemed/services/profile_store.dart';
 import 'screens/home_screen.dart';
@@ -11,6 +12,7 @@ Future<void> main() async {
     ProfileStore.instance.load(),
     PlanStore.instance.load(),
     AlertStore.instance.load(),
+    MedicationHistoryStore.instance.load(),
   ]);
   if (kDebugMode) {
     await _seedDemoData();

@@ -90,6 +90,9 @@ class ProfileStore extends ChangeNotifier {
         diabetes: true,
         hypertension: false,
         healthIssues: 'Arthritis',
+        allergies: ['Penicillin', 'Iodine'],
+        medicalRestrictions: ['Difficulty swallowing large pills'],
+        category: ProfileType.elderly,
       ),
       Profile(
         id: 'p-$now-2',
@@ -101,6 +104,9 @@ class ProfileStore extends ChangeNotifier {
         diabetes: false,
         hypertension: true,
         healthIssues: '',
+        allergies: ['Sulfa drugs'],
+        medicalRestrictions: [],
+        category: ProfileType.adult,
       ),
     ];
     _profiles.addAll(demo);

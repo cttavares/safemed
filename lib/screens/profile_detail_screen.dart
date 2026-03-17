@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:safemed/models/profile.dart';
+import 'package:safemed/screens/medication_history_screen.dart';
 import 'package:safemed/screens/plan_list_screen.dart';
 import 'package:safemed/screens/prescription_screen.dart';
 import 'package:safemed/screens/profile_form_screen.dart';
+import 'package:safemed/services/medication_history_store.dart';
 import 'package:safemed/services/plan_store.dart';
 import 'package:safemed/services/profile_store.dart';
 
@@ -35,9 +37,90 @@ class ProfileDetailScreen extends StatelessWidget {
             children: [
               _ProfileHeader(profile: profile),
               const SizedBox(height: 16),
+              _SectionTitle('Profile Category'),
+              const SizedBox(height: 8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        profile.category == ProfileType.child
+                            ? Icons.child_care
+                            : profile.category == ProfileType.elderly
+                                ? Icons.elderly
+                                : Icons.person,
+                        size: 32,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        profile.category.displayName,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               _SectionTitle('Conditions'),
               const SizedBox(height: 8),
               _ConditionsList(profile: profile),
+              if (profile.allergies.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _SectionTitle('Allergies'),
+                const SizedBox(height: 8),
+                Card(
+                  color: Colors.orange.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: profile.allergies
+                          .map((allergy) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.warning_amber_rounded,
+                                        size: 20, color: Colors.orange),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: Text(allergy)),
+                                  ],
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                  ),
+                ),
+              ],
+              if (profile.medicalRestrictions.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _SectionTitle('Medical Restrictions'),
+                const SizedBox(height: 8),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: profile.medicalRestrictions
+                          .map((restriction) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.info_outline,
+                                        size: 20, color: Colors.blue),
+                                    const SizedBox(width: 8),
+                                    Expanded(child: Text(restriction)),
+                                  ],
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -97,6 +180,22 @@ class ProfileDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MedicationHistoryScreen(
+                        profileId: profile.id,
+                        profileName: profile.name,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.history),
+                label: const Text('Medication History'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
                 onPressed: () => _confirmDelete(
                   context,
                   profileStore,
@@ -144,6 +243,7 @@ class ProfileDetailScreen extends StatelessWidget {
       for (final plan in plans) {
         await planStore.remove(plan.id);
       }
+      await MedicationHistoryStore.instance.removeForProfile(profile.id);
       await profileStore.remove(profile.id);
       if (context.mounted) {
         Navigator.pop(context);

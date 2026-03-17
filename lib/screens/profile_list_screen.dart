@@ -87,28 +87,28 @@ class ProfileListScreen extends StatelessWidget {
   }
 
   static String _subtitleText(Profile profile) {
-    final tags = <String>[];
-    if (profile.renalDisease) {
-      tags.add('Renal');
+    final parts = <String>[];
+    
+    // Add category and age
+    parts.add('${profile.category.displayName}, Age ${profile.age}');
+    
+    // Add conditions
+    final conditions = <String>[];
+    if (profile.renalDisease) conditions.add('Renal');
+    if (profile.hepaticDisease) conditions.add('Hepatic');
+    if (profile.diabetes) conditions.add('Diabetes');
+    if (profile.hypertension) conditions.add('Hypertension');
+    
+    if (conditions.isNotEmpty) {
+      parts.add(conditions.join(', '));
     }
-    if (profile.hepaticDisease) {
-      tags.add('Hepatic');
+    
+    // Add allergies count if any
+    if (profile.allergies.isNotEmpty) {
+      parts.add('⚠️ ${profile.allergies.length} allerg${profile.allergies.length == 1 ? 'y' : 'ies'}');
     }
-    if (profile.diabetes) {
-      tags.add('Diabetes');
-    }
-    if (profile.hypertension) {
-      tags.add('Hypertension');
-    }
-    final issues = profile.healthIssues.trim();
-    if (issues.isNotEmpty) {
-      tags.add(issues);
-    }
-
-    if (tags.isEmpty) {
-      return 'Age ${profile.age}';
-    }
-    return 'Age ${profile.age} - ${tags.join(', ')}';
+    
+    return parts.join(' • ');
   }
 
   Future<void> _confirmDelete(
