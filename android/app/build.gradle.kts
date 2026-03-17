@@ -32,9 +32,18 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Usa a chave de debug apenas para permitir o build sem criar uma keystore agora
             signingConfig = signingConfigs.getByName("debug")
+        
+            // Ativa a otimização de código (essencial para o modo Release)
+            isMinifyEnabled = true
+            isShrinkResources = true // Remove recursos (imagens/fontes) não utilizados
+        
+            // Indica ao Gradle para ler o ficheiro de regras que criaste
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
