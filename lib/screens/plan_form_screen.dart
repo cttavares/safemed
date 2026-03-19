@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:safemed/models/prescription_plan.dart';
 import 'package:safemed/models/profile.dart';
+import 'package:safemed/screens/medication_picker_dialog.dart';
 import 'package:safemed/services/plan_store.dart';
 import 'package:safemed/services/profile_store.dart';
 
@@ -236,15 +237,7 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
   Future<void> _addMedication() async {
     final result = await showDialog<PlanMedication>(
       context: context,
-      builder: (_) => _EditPlanMedicationDialog(
-        medication: PlanMedication(
-          id: _newId(),
-          name: '',
-          dose: '',
-          times: const [],
-          notes: '',
-        ),
-      ),
+      builder: (_) => const MedicationPickerDialog(),
     );
 
     if (result != null) {
@@ -255,7 +248,7 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
   Future<void> _editMedication(PlanMedication medication) async {
     final result = await showDialog<PlanMedication>(
       context: context,
-      builder: (_) => _EditPlanMedicationDialog(medication: medication),
+      builder: (_) => MedicationPickerDialog(initialMedication: medication),
     );
 
     if (result != null) {

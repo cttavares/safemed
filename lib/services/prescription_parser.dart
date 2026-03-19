@@ -2,8 +2,7 @@
 import '../data/medications_pt_pt.dart';
 
 class PrescriptionParser {
-  // Common Æ’?ounitsÆ’?? youÆ’?Tll see in prescriptions
-  static const _units = ['mg', 'g', 'mcg', 'AÃ¦g', 'ug', 'ml', 'mL'];
+
 
   // Words that often indicate dosing instructions (helps identify med lines)
   static const _doseHints = [
@@ -377,8 +376,9 @@ class PrescriptionParser {
 
   String? _combineNotes(List<String?> notes) {
     final cleaned = notes
-        .where((n) => n != null && n!.trim().isNotEmpty)
-        .map((n) => n!.trim())
+        .where((n) => n != null && n.trim().isNotEmpty)
+        .cast<String>()
+        .map((n) => n.trim())
         .toList();
     if (cleaned.isEmpty) return null;
     return cleaned.join(' | ');
