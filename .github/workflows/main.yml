@@ -1,0 +1,52 @@
+name: Flutter CI
+
+# Define os eventos que vão disparar este workflow
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-and-test:
+    # Usa a máquina virtual Linux mais recente (mais rápido e barato/grátis que macOS)
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Faz o checkout do código do teu repositório
+      - name: Clonar o repositório
+        uses: actions/checkout@v4
+
+      # 2. Configura o Java (Necessário para compilar a parte Android do Flutter)
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 3. Instala e configura o Flutter
+      - name: Configurar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable' # Usa a versão estável mais recente do Flutter
+          cache: true       # Ativa o cache para acelerar execuções futuras
+
+      # 4. Instala as dependências (packages do pubspec.yaml)
+      - name: Instalar dependências
+        run: flutter pub get
+
+      # 5. Verifica se o código está formatado corretamente
+      - name: Verificar formatação de código
+        run: dart format --output=none --set-exit-if-changed .
+
+      # 6. Executa o analisador estático para encontrar erros de sintaxe ou más práticas
+      - name: Analisar código (Linting)
+        run: flutter analyze
+
+      # 7. Executa os testes unitários e de widgets (pasta /test)
+      - name: Executar testes
+        run: flutter test
+
+      # 8. (Opcional) Tenta compilar um APK de debug para garantir que a app faz build
+      - name: Compilar APK (Debug)
+        run: flutter build apk --debug
