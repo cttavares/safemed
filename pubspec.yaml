@@ -1,5 +1,5 @@
 name: safemed
-description: "A new Flutter project."
+description: "Ferramenta digital de apoio ao utente e análise/verificação de prescrições médicas."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -41,6 +41,7 @@ dependencies:
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.13.1
   flutter_test:
     sdk: flutter
 
@@ -92,3 +93,13 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/app_icon_small.png"
+#  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF" # white
+  adaptive_icon_foreground: "assets/images/app_icon_small_no-bg.png"
+#  adaptive_icon_foreground_inset: 15 # 8 - 16 is a good range (default is 0)

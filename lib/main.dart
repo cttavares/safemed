@@ -26,7 +26,7 @@ class SafeMedApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SafeMed',
+      title: 'Safemed',
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: Colors.teal,
