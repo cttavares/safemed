@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:safemed/data/medications_database.dart';
+import 'package:safemed/data/substance_risk_tables.dart';
 import 'package:safemed/models/medication.dart';
 import 'package:safemed/models/prescription_plan.dart';
+import 'package:safemed/models/profile.dart';
+import 'package:safemed/services/profile_store.dart';
 
 class MedicationPickerDialog extends StatefulWidget {
   final PlanMedication? initialMedication;
+  final String? profileId;
 
   const MedicationPickerDialog({
     super.key,
     this.initialMedication,
+    this.profileId,
   });
 
   @override
@@ -18,6 +23,14 @@ class MedicationPickerDialog extends StatefulWidget {
 class _MedicationPickerDialogState extends State<MedicationPickerDialog> {
   final _searchController = TextEditingController();
   List<Medication> _filteredMedications = List.from(medicamentosBaseDados);
+
+  Profile? get _profile {
+    final id = widget.profileId;
+    if (id == null || id.isEmpty) {
+      return null;
+    }
+    return ProfileStore.instance.getById(id);
+  }
 
   @override
   void initState() {
@@ -47,11 +60,13 @@ class _MedicationPickerDialogState extends State<MedicationPickerDialog> {
 
   void _showDosageAndTimesDialog(Medication medication) {
     final initial = widget.initialMedication;
+    final profile = _profile;
     showDialog(
       context: context,
       builder: (context) => _DosageAndTimesDialog(
         medication: medication,
         initialMedication: initial,
+        profile: profile,
       ),
     ).then((planMedication) {
       if (!mounted || planMedication == null) {
@@ -105,7 +120,34 @@ class _MedicationPickerDialogState extends State<MedicationPickerDialog> {
                         itemCount: _filteredMedications.length,
                         itemBuilder: (context, index) {
                           final med = _filteredMedications[index];
+                          final profile = _profile;
+                          final allergyMatches = profile == null
+                              ? const <String>[]
+                              : findMatchedAllergyRulesForSubstance(
+                                  patientAllergies: profile.allergies,
+                                  substance: med.substanciaAtiva,
+                                );
+                          final hasAllergyRisk = allergyMatches.isNotEmpty;
+                          final pregRisk = pregnancyRiskBySubstance(
+                                med.substanciaAtiva,
+                              ) ??
+                              med.riscoGravidez;
+                          final showPregnancyRisk = profile != null &&
+                              profile.sex == BiologicalSex.female &&
+                              profile.isPregnant;
+
                           return ListTile(
+                            leading: hasAllergyRisk
+                                ? const Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Colors.red,
+                                  )
+                                : showPregnancyRisk
+                                    ? Icon(
+                                        Icons.pregnant_woman,
+                                        color: _fdaColor(pregRisk),
+                                      )
+                                    : null,
                             title: Text(med.nomeComercial),
                             subtitle: Text(
                               '${med.substanciaAtiva} · ${med.dosagem}',
@@ -144,11 +186,13 @@ class _MedicationPickerDialogState extends State<MedicationPickerDialog> {
 class _DosageAndTimesDialog extends StatefulWidget {
   final Medication medication;
   final PlanMedication? initialMedication;
+  final Profile? profile;
 
   const _DosageAndTimesDialog({
     Key? key,
     required this.medication,
     this.initialMedication,
+    this.profile,
   }) : super(key: key);
 
   @override
@@ -228,6 +272,21 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final profile = widget.profile;
+    final allergyMatches = profile == null
+        ? const <String>[]
+        : findMatchedAllergyRulesForSubstance(
+            patientAllergies: profile.allergies,
+            substance: widget.medication.substanciaAtiva,
+          );
+    final hasAllergyRisk = allergyMatches.isNotEmpty;
+
+    final riskFromTable = pregnancyRiskBySubstance(widget.medication.substanciaAtiva);
+    final pregnancyRisk = riskFromTable ?? widget.medication.riscoGravidez;
+    final isPregnantProfile = profile != null &&
+        profile.sex == BiologicalSex.female &&
+        profile.isPregnant;
+
     return Dialog(
       child: SingleChildScrollView(
         child: Padding(
@@ -241,6 +300,42 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 16),
+              if (hasAllergyRisk)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    border: Border.all(color: Colors.red.shade400),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'ALERTA VERMELHO: alergia compativel detectada (${allergyMatches.join(', ')}).',
+                    style: TextStyle(
+                      color: Colors.red.shade900,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              if (isPregnantProfile)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _fdaColor(pregnancyRisk).withValues(alpha: 0.12),
+                    border: Border.all(color: _fdaColor(pregnancyRisk)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Risco na gravidez FDA ${pregnancyRisk.name}: ${_fdaMessage(pregnancyRisk)}',
+                    style: TextStyle(
+                      color: _fdaColor(pregnancyRisk),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               // Medicamento selecionado (read-only)
               Card(
                 child: Padding(
@@ -348,5 +443,35 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
         ),
       ),
     );
+  }
+}
+
+Color _fdaColor(PregnancyRiskCategory category) {
+  switch (category) {
+    case PregnancyRiskCategory.A:
+      return Colors.green.shade700;
+    case PregnancyRiskCategory.B:
+      return Colors.lightGreen.shade700;
+    case PregnancyRiskCategory.C:
+      return Colors.amber.shade800;
+    case PregnancyRiskCategory.D:
+      return Colors.orange.shade900;
+    case PregnancyRiskCategory.X:
+      return Colors.red.shade800;
+  }
+}
+
+String _fdaMessage(PregnancyRiskCategory category) {
+  switch (category) {
+    case PregnancyRiskCategory.A:
+      return 'sem risco conhecido em humanos.';
+    case PregnancyRiskCategory.B:
+      return 'baixo risco, usar com avaliacao clinica.';
+    case PregnancyRiskCategory.C:
+      return 'risco potencial; avaliar risco/beneficio.';
+    case PregnancyRiskCategory.D:
+      return 'evidencia de risco fetal.';
+    case PregnancyRiskCategory.X:
+      return 'contraindicado na gravidez.';
   }
 }

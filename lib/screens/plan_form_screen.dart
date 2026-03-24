@@ -237,7 +237,7 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
   Future<void> _addMedication() async {
     final result = await showDialog<PlanMedication>(
       context: context,
-      builder: (_) => const MedicationPickerDialog(),
+      builder: (_) => MedicationPickerDialog(profileId: _profileId),
     );
 
     if (result != null) {
@@ -248,7 +248,10 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
   Future<void> _editMedication(PlanMedication medication) async {
     final result = await showDialog<PlanMedication>(
       context: context,
-      builder: (_) => MedicationPickerDialog(initialMedication: medication),
+      builder: (_) => MedicationPickerDialog(
+        initialMedication: medication,
+        profileId: _profileId,
+      ),
     );
 
     if (result != null) {

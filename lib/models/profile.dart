@@ -32,10 +32,35 @@ enum ProfileType {
   }
 }
 
+enum BiologicalSex {
+  female,
+  male;
+
+  String get displayName {
+    switch (this) {
+      case BiologicalSex.female:
+        return 'Feminino';
+      case BiologicalSex.male:
+        return 'Masculino';
+    }
+  }
+
+  static BiologicalSex fromString(String value) {
+    switch (value.toLowerCase()) {
+      case 'female':
+        return BiologicalSex.female;
+      default:
+        return BiologicalSex.male;
+    }
+  }
+}
+
 class Profile {
   final String id;
   final String name;
   final int age;
+  final BiologicalSex sex;
+  final bool isPregnant;
   final String? photoPath;
   final bool renalDisease;
   final bool hepaticDisease;
@@ -50,6 +75,8 @@ class Profile {
     required this.id,
     required this.name,
     required this.age,
+    this.sex = BiologicalSex.male,
+    this.isPregnant = false,
     this.photoPath,
     this.renalDisease = false,
     this.hepaticDisease = false,
@@ -64,6 +91,8 @@ class Profile {
   Profile copyWith({
     String? name,
     int? age,
+    BiologicalSex? sex,
+    bool? isPregnant,
     String? photoPath,
     bool? renalDisease,
     bool? hepaticDisease,
@@ -78,6 +107,8 @@ class Profile {
       id: id,
       name: name ?? this.name,
       age: age ?? this.age,
+      sex: sex ?? this.sex,
+      isPregnant: isPregnant ?? this.isPregnant,
       photoPath: photoPath ?? this.photoPath,
       renalDisease: renalDisease ?? this.renalDisease,
       hepaticDisease: hepaticDisease ?? this.hepaticDisease,
@@ -91,10 +122,18 @@ class Profile {
   }
 
   factory Profile.fromJson(Map<String, dynamic> json) {
+    final parsedSex = json['sex'] != null
+        ? BiologicalSex.fromString(json['sex'].toString())
+        : BiologicalSex.male;
+
     return Profile(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       age: (json['age'] as num?)?.toInt() ?? 0,
+      sex: parsedSex,
+      isPregnant: parsedSex == BiologicalSex.female
+          ? (json['isPregnant'] as bool? ?? false)
+          : false,
       photoPath: json['photoPath'] as String?,
       renalDisease: json['renalDisease'] as bool? ?? false,
       hepaticDisease: json['hepaticDisease'] as bool? ?? false,
@@ -120,6 +159,8 @@ class Profile {
       'id': id,
       'name': name,
       'age': age,
+      'sex': sex.name,
+      'isPregnant': sex == BiologicalSex.female ? isPregnant : false,
       'photoPath': photoPath,
       'renalDisease': renalDisease,
       'hepaticDisease': hepaticDisease,

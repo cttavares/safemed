@@ -65,6 +65,35 @@ class ProfileDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
+              _SectionTitle('Sexo e Gravidez'),
+              const SizedBox(height: 8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        profile.sex == BiologicalSex.female
+                            ? Icons.female
+                            : Icons.male,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          profile.sex.displayName +
+                              (profile.sex == BiologicalSex.female
+                                  ? (profile.isPregnant
+                                      ? ' • Gravida'
+                                      : ' • Nao gravida')
+                                  : ''),
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               _SectionTitle('Conditions'),
               const SizedBox(height: 8),
               _ConditionsList(profile: profile),
