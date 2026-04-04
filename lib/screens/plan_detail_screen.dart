@@ -43,10 +43,7 @@ class PlanDetailScreen extends StatelessWidget {
               if (profile != null) _ProfileHeader(profile: profile),
               const SizedBox(height: 12),
               _DetailTile(label: 'Plan', value: currentPlan.name),
-              _DetailTile(
-                label: 'Status',
-                value: _statusText(currentPlan),
-              ),
+              _DetailTile(label: 'Status', value: _statusText(currentPlan)),
               _DetailTile(
                 label: 'Start date',
                 value: _formatDate(currentPlan.startDate),
@@ -61,9 +58,7 @@ class PlanDetailScreen extends StatelessWidget {
                 title: const Text('Plan active'),
                 value: currentPlan.isActive,
                 onChanged: (value) async {
-                  await planStore.update(
-                    currentPlan.copyWith(isActive: value),
-                  );
+                  await planStore.update(currentPlan.copyWith(isActive: value));
                 },
               ),
               const SizedBox(height: 12),
@@ -88,23 +83,23 @@ class PlanDetailScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                        builder: (_) => PlanFormScreen(plan: currentPlan),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Edit plan'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      _confirmDelete(context, planStore, currentPlan),
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Delete'),
-                ),
-              ),
+                            builder: (_) => PlanFormScreen(plan: currentPlan),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Edit plan'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          _confirmDelete(context, planStore, currentPlan),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Delete'),
+                    ),
+                  ),
                 ],
               ),
             ],

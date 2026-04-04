@@ -33,7 +33,9 @@ class HomeScreen extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const MedicationExplorerScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const MedicationExplorerScreen(),
+                ),
               );
             },
           ),
@@ -55,9 +57,7 @@ class HomeScreen extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const AdministrationScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const AdministrationScreen()),
               );
             },
           ),

@@ -47,10 +47,12 @@ class _MedicationPickerDialogState extends State<MedicationPickerDialog> {
         _filteredMedications = List.from(medicamentosBaseDados);
       } else {
         _filteredMedications = medicamentosBaseDados
-            .where((med) =>
-                med.nomeComercial.toLowerCase().contains(query) ||
-                med.substanciaAtiva.toLowerCase().contains(query) ||
-                med.cnp.toLowerCase().contains(query))
+            .where(
+              (med) =>
+                  med.nomeComercial.toLowerCase().contains(query) ||
+                  med.substanciaAtiva.toLowerCase().contains(query) ||
+                  med.cnp.toLowerCase().contains(query),
+            )
             .toList();
       }
     });
@@ -135,35 +137,44 @@ class _MedicationPickerDialogState extends State<MedicationPickerDialog> {
                                   substance: med.substanciaAtiva,
                                 );
                           final hasAllergyRisk = allergyMatches.isNotEmpty;
-                            final conditionMatches = profile == null
+                          final conditionMatches = profile == null
                               ? const <String>[]
                               : _buildConditionMatches(profile, med);
-                            final hasConditionRisk = conditionMatches.isNotEmpty;
-                            final restrictionMatches = profile == null
+                          final hasConditionRisk = conditionMatches.isNotEmpty;
+                          final restrictionMatches = profile == null
                               ? const <String>[]
                               : _buildRestrictionMatches(profile, med);
-                            final hasRestrictionWarning = restrictionMatches.isNotEmpty;
-                          final pregRisk = pregnancyRiskBySubstance(
-                                med.substanciaAtiva,
-                              ) ??
+                          final hasRestrictionWarning =
+                              restrictionMatches.isNotEmpty;
+                          final pregRisk =
+                              pregnancyRiskBySubstance(med.substanciaAtiva) ??
                               med.riscoGravidez;
-                          final showPregnancyRisk = profile != null &&
+                          final showPregnancyRisk =
+                              profile != null &&
                               profile.sex == BiologicalSex.female &&
                               profile.isPregnant;
-                          final interactionAlerts = _buildInteractionAlertsForCandidate(
-                            candidate: med,
-                            existingPlanMedications: widget.existingPlanMedications,
-                          );
+                          final interactionAlerts =
+                              _buildInteractionAlertsForCandidate(
+                                candidate: med,
+                                existingPlanMedications:
+                                    widget.existingPlanMedications,
+                              );
                           final hasHighInteraction = interactionAlerts.any(
                             (a) => a.level == _RiskLevel.high,
                           );
                           final hasMediumInteraction = interactionAlerts.any(
                             (a) => a.level == _RiskLevel.medium,
                           );
-                            final hasLowOnly = interactionAlerts.isNotEmpty &&
-                              interactionAlerts.every((a) => a.level == _RiskLevel.low);
-                            final lowRiskContext =
-                              !hasAllergyRisk && !showPregnancyRisk && !hasHighInteraction && !hasMediumInteraction;
+                          final hasLowOnly =
+                              interactionAlerts.isNotEmpty &&
+                              interactionAlerts.every(
+                                (a) => a.level == _RiskLevel.low,
+                              );
+                          final lowRiskContext =
+                              !hasAllergyRisk &&
+                              !showPregnancyRisk &&
+                              !hasHighInteraction &&
+                              !hasMediumInteraction;
 
                           return ListTile(
                             leading: hasAllergyRisk || hasConditionRisk
@@ -172,29 +183,29 @@ class _MedicationPickerDialogState extends State<MedicationPickerDialog> {
                                     color: Colors.red,
                                   )
                                 : hasHighInteraction
-                                    ? const Icon(
-                                        Icons.warning_amber_rounded,
-                                        color: Colors.red,
-                                      )
-                                    : hasMediumInteraction
-                                        ? const Icon(
-                                            Icons.warning_amber_rounded,
-                                            color: Colors.amber,
-                                          )
+                                ? const Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Colors.red,
+                                  )
+                                : hasMediumInteraction
+                                ? const Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Colors.amber,
+                                  )
                                 : showPregnancyRisk
-                                    ? Icon(
-                                        Icons.pregnant_woman,
-                                        color: _fdaColor(pregRisk),
-                                      )
-                                    : hasRestrictionWarning || hasLowOnly
-                                        ? const Icon(
-                                            Icons.info_outline,
-                                            color: Colors.amber,
-                                          )
-                                        : const Icon(
-                                            Icons.check_circle_outline,
-                                            color: Colors.green,
-                                          ),
+                                ? Icon(
+                                    Icons.pregnant_woman,
+                                    color: _fdaColor(pregRisk),
+                                  )
+                                : hasRestrictionWarning || hasLowOnly
+                                ? const Icon(
+                                    Icons.info_outline,
+                                    color: Colors.amber,
+                                  )
+                                : const Icon(
+                                    Icons.check_circle_outline,
+                                    color: Colors.green,
+                                  ),
                             title: Text(med.nomeComercial),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -242,7 +253,9 @@ class _MedicationPickerDialogState extends State<MedicationPickerDialog> {
                                     if (showPregnancyRisk)
                                       _RiskChip(
                                         label: 'FDA ${pregRisk.name}',
-                                        bg: _fdaColor(pregRisk).withValues(alpha: 0.12),
+                                        bg: _fdaColor(
+                                          pregRisk,
+                                        ).withValues(alpha: 0.12),
                                         fg: _fdaColor(pregRisk),
                                       ),
                                     if (lowRiskContext || hasLowOnly)
@@ -257,9 +270,9 @@ class _MedicationPickerDialogState extends State<MedicationPickerDialog> {
                             ),
                             trailing: Chip(
                               label: Text(med.formaFarmaceutica),
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
                             ),
                             onTap: () => _onMedicationSelected(med),
                           );
@@ -312,15 +325,17 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
   void initState() {
     super.initState();
     final initial = widget.initialMedication;
-    _dosageController =
-        TextEditingController(text: initial?.dose ?? widget.medication.dosagem);
+    _dosageController = TextEditingController(
+      text: initial?.dose ?? widget.medication.dosagem,
+    );
     _notesController = TextEditingController(text: initial?.notes ?? '');
     _times = List<String>.from(initial?.times ?? const <String>[]);
     _selectedTime = TimeOfDay.now();
   }
 
   void _addTime(TimeOfDay time) {
-    final formattedTime = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+    final formattedTime =
+        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
     setState(() {
       _times.add(formattedTime);
       _times.sort();
@@ -344,13 +359,16 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
 
   void _onConfirm() {
     if (_times.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Adicione pelo menos um horário de administração'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Adicione pelo menos um horário de administração'),
+        ),
+      );
       return;
     }
 
-    final stableId = widget.initialMedication?.id ??
+    final stableId =
+        widget.initialMedication?.id ??
         '${widget.medication.id}_${DateTime.now().millisecondsSinceEpoch}';
 
     final planMedication = PlanMedication(
@@ -383,24 +401,36 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
             substance: widget.medication.substanciaAtiva,
           );
     final hasAllergyRisk = allergyMatches.isNotEmpty;
-      final conditionMatches = profile == null
+    final conditionMatches = profile == null
         ? const <String>[]
         : _buildConditionMatches(profile, widget.medication);
-      final hasConditionRisk = conditionMatches.isNotEmpty;
-      final restrictionMatches = profile == null
+    final hasConditionRisk = conditionMatches.isNotEmpty;
+    final restrictionMatches = profile == null
         ? const <String>[]
         : _buildRestrictionMatches(profile, widget.medication);
-      final hasRestrictionWarning = restrictionMatches.isNotEmpty;
+    final hasRestrictionWarning = restrictionMatches.isNotEmpty;
 
-    final riskFromTable = pregnancyRiskBySubstance(widget.medication.substanciaAtiva);
+    final riskFromTable = pregnancyRiskBySubstance(
+      widget.medication.substanciaAtiva,
+    );
     final pregnancyRisk = riskFromTable ?? widget.medication.riscoGravidez;
-    final isPregnantProfile = profile != null &&
+    final isPregnantProfile =
+        profile != null &&
         profile.sex == BiologicalSex.female &&
         profile.isPregnant;
     final hasAnyInteraction = widget.interactionAlerts.isNotEmpty;
-    final hasHighInteraction = widget.interactionAlerts.any((a) => a.level == _RiskLevel.high);
-    final hasMediumInteraction = widget.interactionAlerts.any((a) => a.level == _RiskLevel.medium);
-    final hasAnyRisk = hasAllergyRisk || hasConditionRisk || isPregnantProfile || hasAnyInteraction || hasRestrictionWarning;
+    final hasHighInteraction = widget.interactionAlerts.any(
+      (a) => a.level == _RiskLevel.high,
+    );
+    final hasMediumInteraction = widget.interactionAlerts.any(
+      (a) => a.level == _RiskLevel.medium,
+    );
+    final hasAnyRisk =
+        hasAllergyRisk ||
+        hasConditionRisk ||
+        isPregnantProfile ||
+        hasAnyInteraction ||
+        hasRestrictionWarning;
 
     return Dialog(
       child: SingleChildScrollView(
@@ -475,9 +505,12 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: (hasHighInteraction ? Colors.red : Colors.amber).shade50,
+                    color: (hasHighInteraction ? Colors.red : Colors.amber)
+                        .shade50,
                     border: Border.all(
-                      color: hasHighInteraction ? Colors.red.shade700 : Colors.amber.shade800,
+                      color: hasHighInteraction
+                          ? Colors.red.shade700
+                          : Colors.amber.shade800,
                     ),
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -488,10 +521,12 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
                         hasHighInteraction
                             ? 'Interacao de risco alto detetada (VERMELHO).'
                             : hasMediumInteraction
-                                ? 'Interacao de risco medio detetada (AMARELO).'
-                                : 'Interacao de baixo risco detetada (VERDE).',
+                            ? 'Interacao de risco medio detetada (AMARELO).'
+                            : 'Interacao de baixo risco detetada (VERDE).',
                         style: TextStyle(
-                          color: hasHighInteraction ? Colors.red.shade900 : Colors.amber.shade900,
+                          color: hasHighInteraction
+                              ? Colors.red.shade900
+                              : Colors.amber.shade900,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -567,10 +602,7 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
               ),
               const SizedBox(height: 16),
               // Dosagem
-              Text(
-                'Dosagem',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+              Text('Dosagem', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
               TextField(
                 controller: _dosageController,
@@ -692,11 +724,7 @@ class _RiskChip extends StatelessWidget {
   final Color bg;
   final Color fg;
 
-  const _RiskChip({
-    required this.label,
-    required this.bg,
-    required this.fg,
-  });
+  const _RiskChip({required this.label, required this.bg, required this.fg});
 
   @override
   Widget build(BuildContext context) {
@@ -709,11 +737,7 @@ class _RiskChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: fg,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -745,12 +769,10 @@ List<_InteractionAlert> _buildInteractionAlertsForCandidate({
       continue;
     }
 
-    final candidateInteractsWithExisting = candidate.interacoesComSubstancias.any(
-      (s) => _normalizeKey(s) == existingSubstance,
-    );
-    final existingInteractsWithCandidate = existing.interacoesComSubstancias.any(
-      (s) => _normalizeKey(s) == candidateSubstance,
-    );
+    final candidateInteractsWithExisting = candidate.interacoesComSubstancias
+        .any((s) => _normalizeKey(s) == existingSubstance);
+    final existingInteractsWithCandidate = existing.interacoesComSubstancias
+        .any((s) => _normalizeKey(s) == candidateSubstance);
 
     if (candidateInteractsWithExisting || existingInteractsWithCandidate) {
       alerts.add(
@@ -767,7 +789,8 @@ List<_InteractionAlert> _buildInteractionAlertsForCandidate({
     alerts.add(
       const _InteractionAlert(
         level: _RiskLevel.low,
-        message: 'Nao foram encontradas interacoes relevantes com a medicacao atual.',
+        message:
+            'Nao foram encontradas interacoes relevantes com a medicacao atual.',
       ),
     );
   }
@@ -812,16 +835,19 @@ List<String> _buildConditionMatches(Profile profile, Medication medication) {
   final matches = <String>[];
   final contraindications = medication.contraindicacoes.toSet();
 
-  if (profile.renalDisease && contraindications.contains(PathologyIds.insuficienciaRenal)) {
+  if (profile.renalDisease &&
+      contraindications.contains(PathologyIds.insuficienciaRenal)) {
     matches.add('Insuficiência renal');
   }
-  if (profile.hepaticDisease && contraindications.contains(PathologyIds.insuficienciaHepatica)) {
+  if (profile.hepaticDisease &&
+      contraindications.contains(PathologyIds.insuficienciaHepatica)) {
     matches.add('Insuficiência hepática');
   }
   if (profile.diabetes && contraindications.contains(PathologyIds.diabetes)) {
     matches.add('Diabetes');
   }
-  if (profile.hypertension && contraindications.contains(PathologyIds.hipertensao)) {
+  if (profile.hypertension &&
+      contraindications.contains(PathologyIds.hipertensao)) {
     matches.add('Hipertensão');
   }
 
@@ -830,11 +856,19 @@ List<String> _buildConditionMatches(Profile profile, Medication medication) {
 
 List<String> _buildRestrictionMatches(Profile profile, Medication medication) {
   final matches = <String>[];
-  final textRestrictions = profile.medicalRestrictions.map(_normalizeKey).toList();
+  final textRestrictions = profile.medicalRestrictions
+      .map(_normalizeKey)
+      .toList();
   final form = _normalizeKey(medication.formaFarmaceutica);
   final substance = _normalizeKey(medication.substanciaAtiva);
 
-  final solidOralForms = <String>{'comprimido', 'capsula', 'capsulas', 'pastilha', 'comprimidos'};
+  final solidOralForms = <String>{
+    'comprimido',
+    'capsula',
+    'capsulas',
+    'pastilha',
+    'comprimidos',
+  };
   final liquidForms = <String>{'xarope', 'solucao', 'suspensao', 'gotas'};
   final nsaidSubstances = <String>{
     'ibuprofeno',
@@ -862,7 +896,8 @@ List<String> _buildRestrictionMatches(Profile profile, Medication medication) {
       continue;
     }
 
-    if ((restriction.contains('liquida') || restriction.contains('farmaceutica_liquida')) &&
+    if ((restriction.contains('liquida') ||
+            restriction.contains('farmaceutica_liquida')) &&
         !isLiquidMedication) {
       matches.add('Necessidade de forma farmacêutica líquida');
       continue;
@@ -876,12 +911,14 @@ List<String> _buildRestrictionMatches(Profile profile, Medication medication) {
     }
 
     if ((restriction.contains('sedacao') || restriction.contains('sedativ')) &&
-        (substance.contains('clemastina') || substance.contains('talidomida'))) {
+        (substance.contains('clemastina') ||
+            substance.contains('talidomida'))) {
       matches.add('Evitar sedação (risco de quedas)');
       continue;
     }
 
-    if ((restriction.contains('alimento') || restriction.contains('com_alimento')) &&
+    if ((restriction.contains('alimento') ||
+            restriction.contains('com_alimento')) &&
         (substance.contains('ibuprofeno') ||
             substance.contains('diclofenaco') ||
             substance.contains('acido_acetilsalicilico') ||

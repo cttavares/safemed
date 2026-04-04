@@ -7,8 +7,8 @@ class MedicationExplorerService {
   final List<_SymptomRule> _symptomRules;
 
   MedicationExplorerService()
-      : _records = _buildRecords(),
-        _symptomRules = _buildSymptomRules();
+    : _records = _buildRecords(),
+      _symptomRules = _buildSymptomRules();
 
   List<MedicationMatch> searchText(String text, {required String source}) {
     final normalized = _normalize(text);
@@ -86,11 +86,12 @@ class _MedicationRecord {
   final List<String> _normalizedAliases;
 
   _MedicationRecord(this.name, this.aliases)
-      : _normalizedName = _normalize(name),
-        _normalizedAliases = aliases.map(_normalize).toList();
+    : _normalizedName = _normalize(name),
+      _normalizedAliases = aliases.map(_normalize).toList();
 
   bool matches(String normalizedText) {
-    if (_normalizedName.isNotEmpty && normalizedText.contains(_normalizedName)) {
+    if (_normalizedName.isNotEmpty &&
+        normalizedText.contains(_normalizedName)) {
       return true;
     }
     for (final alias in _normalizedAliases) {
@@ -139,35 +140,17 @@ List<_SymptomRule> _buildSymptomRules() {
       'ibuprofeno',
       'dipirona',
     ]),
-    _SymptomRule('febre', 'febre', [
-      'paracetamol',
-      'ibuprofeno',
-      'dipirona',
-    ]),
-    _SymptomRule('dor muscular', 'dor muscular', [
-      'ibuprofeno',
-      'diclofenaco',
-    ]),
-    _SymptomRule('azia', 'azia', [
-      'omeprazol',
-      'pantoprazol',
-    ]),
-    _SymptomRule('nausea', 'nausea', [
-      'ondansetrona',
-      'metoclopramida',
-    ]),
-    _SymptomRule('diarreia', 'diarreia', [
-      'loperamida',
-    ]),
+    _SymptomRule('febre', 'febre', ['paracetamol', 'ibuprofeno', 'dipirona']),
+    _SymptomRule('dor muscular', 'dor muscular', ['ibuprofeno', 'diclofenaco']),
+    _SymptomRule('azia', 'azia', ['omeprazol', 'pantoprazol']),
+    _SymptomRule('nausea', 'nausea', ['ondansetrona', 'metoclopramida']),
+    _SymptomRule('diarreia', 'diarreia', ['loperamida']),
     _SymptomRule('alergia', 'alergia', [
       'loratadina',
       'cetirizina',
       'desloratadina',
     ]),
-    _SymptomRule('tosse', 'tosse', [
-      'ambroxol',
-      'acetilcisteina',
-    ]),
+    _SymptomRule('tosse', 'tosse', ['ambroxol', 'acetilcisteina']),
   ];
 }
 

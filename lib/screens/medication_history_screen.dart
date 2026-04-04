@@ -17,9 +17,7 @@ class MedicationHistoryScreen extends StatelessWidget {
     final historyStore = MedicationHistoryStore.instance;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('$profileName - Medication History'),
-      ),
+      appBar: AppBar(title: Text('$profileName - Medication History')),
       body: AnimatedBuilder(
         animation: historyStore,
         builder: (context, _) {
@@ -47,10 +45,8 @@ class MedicationHistoryScreen extends StatelessWidget {
             );
           }
 
-          final activeHistory =
-              history.where((h) => h.isActive).toList();
-          final pastHistory =
-              history.where((h) => !h.isActive).toList();
+          final activeHistory = history.where((h) => h.isActive).toList();
+          final pastHistory = history.where((h) => !h.isActive).toList();
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -58,10 +54,7 @@ class MedicationHistoryScreen extends StatelessWidget {
               if (activeHistory.isNotEmpty) ...[
                 const Text(
                   'Currently Taking',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 ...activeHistory.map((entry) => _HistoryCard(entry: entry)),
@@ -70,10 +63,7 @@ class MedicationHistoryScreen extends StatelessWidget {
               if (pastHistory.isNotEmpty) ...[
                 const Text(
                   'Past Medications',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 ...pastHistory.map((entry) => _HistoryCard(entry: entry)),
@@ -128,8 +118,10 @@ class _HistoryCard extends StatelessWidget {
                 ),
                 if (entry.isActive)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green.shade100,
                       borderRadius: BorderRadius.circular(12),
@@ -184,10 +176,7 @@ class _HistoryCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     'Effectiveness: ',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                   ...List.generate(
                     5,
@@ -204,11 +193,7 @@ class _HistoryCard extends StatelessWidget {
             ],
             if (entry.notes.isNotEmpty) ...[
               const SizedBox(height: 8),
-              _InfoRow(
-                icon: Icons.notes,
-                label: 'Notes',
-                value: entry.notes,
-              ),
+              _InfoRow(icon: Icons.notes, label: 'Notes', value: entry.notes),
             ],
           ],
         ),

@@ -41,7 +41,7 @@ const List<AllergySubstanceRule> allergySubstanceRules = [
       'Diclofenaco',
       'Naproxeno',
       'Acido Acetilsalicilico',
-      'Aspirina'
+      'Aspirina',
     ],
   ),
   AllergySubstanceRule(
@@ -115,7 +115,9 @@ String _normalizeAllergyInput(String value) {
   if (n.contains('sulfa')) {
     return 'sulfonamidas';
   }
-  if (n.contains('nsaid') || n.contains('antiinflamatorio') || n.contains('anti-inflamatorio')) {
+  if (n.contains('nsaid') ||
+      n.contains('antiinflamatorio') ||
+      n.contains('anti-inflamatorio')) {
     return 'anti-inflamatorio nao esteroide';
   }
   return n;

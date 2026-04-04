@@ -88,26 +88,28 @@ class ProfileListScreen extends StatelessWidget {
 
   static String _subtitleText(Profile profile) {
     final parts = <String>[];
-    
+
     // Add category and age
     parts.add('${profile.category.displayName}, Age ${profile.age}');
-    
+
     // Add conditions
     final conditions = <String>[];
     if (profile.renalDisease) conditions.add('Renal');
     if (profile.hepaticDisease) conditions.add('Hepatic');
     if (profile.diabetes) conditions.add('Diabetes');
     if (profile.hypertension) conditions.add('Hypertension');
-    
+
     if (conditions.isNotEmpty) {
       parts.add(conditions.join(', '));
     }
-    
+
     // Add allergies count if any
     if (profile.allergies.isNotEmpty) {
-      parts.add('⚠️ ${profile.allergies.length} allerg${profile.allergies.length == 1 ? 'y' : 'ies'}');
+      parts.add(
+        '⚠️ ${profile.allergies.length} allerg${profile.allergies.length == 1 ? 'y' : 'ies'}',
+      );
     }
-    
+
     return parts.join(' • ');
   }
 
@@ -156,19 +158,13 @@ class _ProfileAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final photoPath = profile.photoPath;
     if (photoPath == null || photoPath.isEmpty) {
-      return CircleAvatar(
-        child: Text(_initial(profile.name)),
-      );
+      return CircleAvatar(child: Text(_initial(profile.name)));
     }
     final file = File(photoPath);
     if (!file.existsSync()) {
-      return CircleAvatar(
-        child: Text(_initial(profile.name)),
-      );
+      return CircleAvatar(child: Text(_initial(profile.name)));
     }
-    return CircleAvatar(
-      backgroundImage: FileImage(file),
-    );
+    return CircleAvatar(backgroundImage: FileImage(file));
   }
 
   String _initial(String name) {

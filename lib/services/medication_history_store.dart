@@ -38,9 +38,9 @@ class MedicationHistoryStore extends ChangeNotifier {
       _history
         ..clear()
         ..addAll(
-          decoded
-              .whereType<Map<String, dynamic>>()
-              .map(MedicationHistory.fromJson),
+          decoded.whereType<Map<String, dynamic>>().map(
+            MedicationHistory.fromJson,
+          ),
         );
       notifyListeners();
     } catch (_) {

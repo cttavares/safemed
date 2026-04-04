@@ -41,7 +41,8 @@ class PrescriptionPlan {
       id: json['id']?.toString() ?? '',
       profileId: json['profileId']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
-      startDate: DateTime.tryParse(json['startDate']?.toString() ?? '') ??
+      startDate:
+          DateTime.tryParse(json['startDate']?.toString() ?? '') ??
           DateTime.now(),
       endDate: json['endDate'] == null
           ? null

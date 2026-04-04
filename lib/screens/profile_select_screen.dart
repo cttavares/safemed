@@ -52,9 +52,8 @@ class ProfileSelectScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => PrescriptionScreen(
-                          profileId: profile.id,
-                        ),
+                        builder: (_) =>
+                            PrescriptionScreen(profileId: profile.id),
                       ),
                     );
                   },

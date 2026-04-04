@@ -17,12 +17,7 @@ class ResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final results = analyzePrescription(
-      prescriptionText,
-      age,
-      renal,
-      hepatic,
-    );
+    final results = analyzePrescription(prescriptionText, age, renal, hepatic);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Analysis result')),

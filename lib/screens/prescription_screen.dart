@@ -75,31 +75,32 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
 
     final List<MedicationEntry>? confirmed =
         await Navigator.push<List<MedicationEntry>>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ConfirmMedicationsScreen(
-          initial: meds,
-        ),
-      ),
-    );
+          context,
+          MaterialPageRoute(
+            builder: (_) => ConfirmMedicationsScreen(initial: meds),
+          ),
+        );
 
     if (!mounted) return;
     if (confirmed == null) {
       return;
     }
 
-    final text = confirmed.map((m) {
-      final boxInfo = _formatBoxInfo(m);
-      final freq = (m.timesPerDay != null) ? ' ${m.timesPerDay}x/day' : '';
-      final interval = (m.interval != null && m.interval!.trim().isNotEmpty)
-          ? ' ${m.interval}'
-          : '';
-      final intake = (m.intakeNotes != null && m.intakeNotes!.trim().isNotEmpty)
-          ? ' Toma: ${m.intakeNotes}'
-          : '';
-      final daily = _formatDailyDose(m);
-      return '${boxInfo}${m.displayName}$freq$interval$daily$intake'.trim();
-    }).join('\n');
+    final text = confirmed
+        .map((m) {
+          final boxInfo = _formatBoxInfo(m);
+          final freq = (m.timesPerDay != null) ? ' ${m.timesPerDay}x/day' : '';
+          final interval = (m.interval != null && m.interval!.trim().isNotEmpty)
+              ? ' ${m.interval}'
+              : '';
+          final intake =
+              (m.intakeNotes != null && m.intakeNotes!.trim().isNotEmpty)
+              ? ' Toma: ${m.intakeNotes}'
+              : '';
+          final daily = _formatDailyDose(m);
+          return '${boxInfo}${m.displayName}$freq$interval$daily$intake'.trim();
+        })
+        .join('\n');
 
     _replaceText(text);
   }
@@ -114,8 +115,9 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
     final u = m.strengthUnit;
     final pack = m.packQuantity;
 
-    final strengthText =
-        (v != null && u != null && u.trim().isNotEmpty) ? '${_formatNumber(v)} $u' : '';
+    final strengthText = (v != null && u != null && u.trim().isNotEmpty)
+        ? '${_formatNumber(v)} $u'
+        : '';
     final packText = (pack != null) ? ' x $pack' : '';
 
     final combined = '$strengthText$packText'.trim();
@@ -185,13 +187,11 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
     // Show confirmation screen like OCR does
     final List<MedicationEntry>? confirmed =
         await Navigator.push<List<MedicationEntry>>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ConfirmMedicationsScreen(
-          initial: meds,
-        ),
-      ),
-    );
+          context,
+          MaterialPageRoute(
+            builder: (_) => ConfirmMedicationsScreen(initial: meds),
+          ),
+        );
 
     if (!mounted) return;
     if (confirmed == null || confirmed.isEmpty) {
@@ -202,15 +202,17 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
     final planMedications = confirmed.map((m) {
       // Generate times based on frequency
       final times = _generateTimesFromMedication(m);
-      
+
       // Format dose string
       final doseStr = _formatDoseString(m);
-      
+
       // Format notes
       final notes = _formatNotesString(m);
 
       return PlanMedication(
-        id: DateTime.now().microsecondsSinceEpoch.toString() + m.name.hashCode.toString(),
+        id:
+            DateTime.now().microsecondsSinceEpoch.toString() +
+            m.name.hashCode.toString(),
         name: m.displayName,
         dose: doseStr,
         times: times,
@@ -234,17 +236,15 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => PlanFormScreen(
-          plan: tempPlan,
-          profileId: widget.profileId,
-        ),
+        builder: (_) =>
+            PlanFormScreen(plan: tempPlan, profileId: widget.profileId),
       ),
     );
   }
 
   List<String> _generateTimesFromMedication(MedicationEntry m) {
     final times = <String>[];
-    
+
     // If interval is specified (e.g., "8/8 h"), calculate times
     if (m.interval != null && m.interval!.contains('/')) {
       final match = RegExp(r'(\d+)/(\d+)').firstMatch(m.interval!);
@@ -260,7 +260,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
         }
       }
     }
-    
+
     // If timesPerDay is specified, distribute evenly
     if (m.timesPerDay != null && m.timesPerDay! > 0) {
       if (m.timesPerDay == 1) {
@@ -280,20 +280,20 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
         }
       }
     }
-    
+
     return times;
   }
 
   String _formatDoseString(MedicationEntry m) {
     final parts = <String>[];
-    
+
     if (m.strengthValue != null && m.strengthUnit != null) {
       final value = m.strengthValue == m.strengthValue!.roundToDouble()
           ? m.strengthValue!.toInt().toString()
           : m.strengthValue.toString();
       parts.add('$value ${m.strengthUnit}');
     }
-    
+
     if (m.dosePerIntake != null) {
       final value = m.dosePerIntake == m.dosePerIntake!.roundToDouble()
           ? m.dosePerIntake!.toInt().toString()
@@ -301,21 +301,21 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
       final unit = m.doseUnit ?? 'comprimido';
       parts.add('$value $unit');
     }
-    
+
     return parts.join(' - ');
   }
 
   String _formatNotesString(MedicationEntry m) {
     final parts = <String>[];
-    
+
     if (m.intakeNotes != null && m.intakeNotes!.trim().isNotEmpty) {
       parts.add(m.intakeNotes!);
     }
-    
+
     if (m.notes != null && m.notes!.trim().isNotEmpty) {
       parts.add(m.notes!);
     }
-    
+
     return parts.join(' | ');
   }
 

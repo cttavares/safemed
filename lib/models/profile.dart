@@ -140,11 +140,13 @@ class Profile {
       diabetes: json['diabetes'] as bool? ?? false,
       hypertension: json['hypertension'] as bool? ?? false,
       healthIssues: json['healthIssues']?.toString() ?? '',
-      allergies: (json['allergies'] as List<dynamic>?)
+      allergies:
+          (json['allergies'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
-      medicalRestrictions: (json['medicalRestrictions'] as List<dynamic>?)
+      medicalRestrictions:
+          (json['medicalRestrictions'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],

@@ -55,7 +55,8 @@ class MedicationHistory {
       profileId: json['profileId']?.toString() ?? '',
       medicationName: json['medicationName']?.toString() ?? '',
       dose: json['dose']?.toString() ?? '',
-      startDate: DateTime.tryParse(json['startDate']?.toString() ?? '') ??
+      startDate:
+          DateTime.tryParse(json['startDate']?.toString() ?? '') ??
           DateTime.now(),
       endDate: json['endDate'] == null
           ? null

@@ -44,7 +44,8 @@ class Medication {
   final String id;
   final String cnp; // Código Nacional do Produto (código de barras)
   final String nomeComercial; // Nome da caixa
-  final String formaFarmaceutica; // Comprimido, xarope, cápsula, pomada, injeção, etc.
+  final String
+  formaFarmaceutica; // Comprimido, xarope, cápsula, pomada, injeção, etc.
 
   // 2. COMPOSIÇÃO CLÍNICA
   final String substanciaAtiva; // Molécula que faz o efeito
@@ -56,7 +57,8 @@ class Medication {
   final bool sujeitoReceitaMedica; // Venda livre vs prescrição obrigatória
 
   // 4. LIGAÇÕES RELACIONAIS (Listas de Risco)
-  final List<String> contraindicacoes; // IDs de patologias (ex: ["hipertensao", "insuficiencia_renal"])
+  final List<String>
+  contraindicacoes; // IDs de patologias (ex: ["hipertensao", "insuficiencia_renal"])
   final List<String> efeitosSecundariosComuns; // Informação para o utilizador
 
   // OPCIONAL: Interações com outras substâncias ativas
@@ -86,40 +88,50 @@ class Medication {
   bool get isRiskyDuringPregnancy => riscoGravidez.severity >= 3; // C, D ou X
 
   // Verifica se é totalmente contraindicado na gravidez
-  bool get isContraindicatedInPregnancy => riscoGravidez == PregnancyRiskCategory.X;
+  bool get isContraindicatedInPregnancy =>
+      riscoGravidez == PregnancyRiskCategory.X;
 
   // Converte para JSON (útil para persistência)
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'cnp': cnp,
-        'nomeComercial': nomeComercial,
-        'formaFarmaceutica': formaFarmaceutica,
-        'substanciaAtiva': substanciaAtiva,
-        'dosagem': dosagem,
-        'riscoGravidez': riscoGravidez.name,
-        'idadeMinima': idadeMinima,
-        'sujeitoReceitaMedica': sujeitoReceitaMedica,
-        'contraindicacoes': contraindicacoes,
-        'efeitosSecundariosComuns': efeitosSecundariosComuns,
-        'interacoesComSubstancias': interacoesComSubstancias,
-      };
+    'id': id,
+    'cnp': cnp,
+    'nomeComercial': nomeComercial,
+    'formaFarmaceutica': formaFarmaceutica,
+    'substanciaAtiva': substanciaAtiva,
+    'dosagem': dosagem,
+    'riscoGravidez': riscoGravidez.name,
+    'idadeMinima': idadeMinima,
+    'sujeitoReceitaMedica': sujeitoReceitaMedica,
+    'contraindicacoes': contraindicacoes,
+    'efeitosSecundariosComuns': efeitosSecundariosComuns,
+    'interacoesComSubstancias': interacoesComSubstancias,
+  };
 
   // Cria partir de JSON
   factory Medication.fromJson(Map<String, dynamic> json) => Medication(
-        id: json['id'] as String,
-        cnp: json['cnp'] as String,
-        nomeComercial: json['nomeComercial'] as String,
-        formaFarmaceutica: json['formaFarmaceutica'] as String,
-        substanciaAtiva: json['substanciaAtiva'] as String,
-        dosagem: json['dosagem'] as String,
-        riscoGravidez: PregnancyRiskCategory.values.byName(json['riscoGravidez'] as String),
-        idadeMinima: json['idadeMinima'] as int?,
-        sujeitoReceitaMedica: json['sujeitoReceitaMedica'] as bool,
-        contraindicacoes: List<String>.from(json['contraindicacoes'] as List? ?? []),
-        efeitosSecundariosComuns: List<String>.from(json['efeitosSecundariosComuns'] as List? ?? []),
-        interacoesComSubstancias: List<String>.from(json['interacoesComSubstancias'] as List? ?? []),
-      );
+    id: json['id'] as String,
+    cnp: json['cnp'] as String,
+    nomeComercial: json['nomeComercial'] as String,
+    formaFarmaceutica: json['formaFarmaceutica'] as String,
+    substanciaAtiva: json['substanciaAtiva'] as String,
+    dosagem: json['dosagem'] as String,
+    riscoGravidez: PregnancyRiskCategory.values.byName(
+      json['riscoGravidez'] as String,
+    ),
+    idadeMinima: json['idadeMinima'] as int?,
+    sujeitoReceitaMedica: json['sujeitoReceitaMedica'] as bool,
+    contraindicacoes: List<String>.from(
+      json['contraindicacoes'] as List? ?? [],
+    ),
+    efeitosSecundariosComuns: List<String>.from(
+      json['efeitosSecundariosComuns'] as List? ?? [],
+    ),
+    interacoesComSubstancias: List<String>.from(
+      json['interacoesComSubstancias'] as List? ?? [],
+    ),
+  );
 
   @override
-  String toString() => 'Medication{id: $id, nome: $nomeComercial, substancia: $substanciaAtiva}';
+  String toString() =>
+      'Medication{id: $id, nome: $nomeComercial, substancia: $substanciaAtiva}';
 }

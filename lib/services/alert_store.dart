@@ -54,5 +54,4 @@ class AlertStore extends ChangeNotifier {
     final d = date.day.toString().padLeft(2, '0');
     return '$y-$m-$d';
   }
-
 }

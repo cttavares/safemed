@@ -1,17 +1,36 @@
-﻿import '../models/medication_entry.dart';
+import '../models/medication_entry.dart';
 import '../data/medications_pt_pt.dart';
 
 class PrescriptionParser {
-
-
   // Words that often indicate dosing instructions (helps identify med lines)
   static const _doseHints = [
-    'comp', 'comprim', 'caps', 'cAÂ­ps', 'cp', 'tab', 'saqueta', 'sach',
-    'x/dia', 'vez', 'vezes', 'dia', 'diario', 'diaria',
-    '8/8', '12/12', '24/24',
-    'manhAÅ“', 'noite', 'tarde',
-    'take', 'daily', 'hours', 'every',
-    'sos', 's.o.s', 'necessario',
+    'comp',
+    'comprim',
+    'caps',
+    'cAÂ­ps',
+    'cp',
+    'tab',
+    'saqueta',
+    'sach',
+    'x/dia',
+    'vez',
+    'vezes',
+    'dia',
+    'diario',
+    'diaria',
+    '8/8',
+    '12/12',
+    '24/24',
+    'manhAÅ“',
+    'noite',
+    'tarde',
+    'take',
+    'daily',
+    'hours',
+    'every',
+    'sos',
+    's.o.s',
+    'necessario',
   ];
 
   // Normalize OCR text a bit
@@ -20,7 +39,10 @@ class PrescriptionParser {
     t = t.replaceAll(RegExp(r'\s+'), ' ');
 
     // Common OCR confusions
-    t = t.replaceAll('O', '0'); // careful: can be wrong, but often helps with "1O00 mg"
+    t = t.replaceAll(
+      'O',
+      '0',
+    ); // careful: can be wrong, but often helps with "1O00 mg"
     t = t.replaceAll('l', '1'); // similarly risky; remove if too aggressive
 
     // Normalize microgram symbols
@@ -132,7 +154,10 @@ class PrescriptionParser {
     return 1.0 - (dist / maxLen);
   }
 
-  ({String name, String? brandName}) _resolveMedicationName(String rawName, String fullLine) {
+  ({String name, String? brandName}) _resolveMedicationName(
+    String rawName,
+    String fullLine,
+  ) {
     final base = _normalizeForMatch(rawName);
     if (base.isEmpty) return (name: rawName, brandName: null);
 
@@ -197,7 +222,10 @@ class PrescriptionParser {
 
     if (bestAlias == null) return fallback;
 
-    final match = RegExp(RegExp.escape(bestAlias), caseSensitive: false).firstMatch(line);
+    final match = RegExp(
+      RegExp.escape(bestAlias),
+      caseSensitive: false,
+    ).firstMatch(line);
     if (match != null) return match.group(0);
     return bestAlias;
   }
@@ -207,8 +235,10 @@ class PrescriptionParser {
     final lower = line.toLowerCase();
 
     // has a number + unit (e.g. 500 mg, 1 g, 5 ml)
-    final hasStrength = RegExp(r'(\d+([.,]\d+)?)\s*(mg|g|mcg|ml)\b', caseSensitive: false)
-        .hasMatch(lower);
+    final hasStrength = RegExp(
+      r'(\d+([.,]\d+)?)\s*(mg|g|mcg|ml)\b',
+      caseSensitive: false,
+    ).hasMatch(lower);
 
     // or has dosing hints
     final hasDoseHint = _doseHints.any((h) => lower.contains(h));
@@ -217,7 +247,9 @@ class PrescriptionParser {
     if (lower.length < 4) return false;
 
     // ignore obvious headers
-    if (lower.contains('prescri') || lower.contains('receita') || lower.contains('utente')) {
+    if (lower.contains('prescri') ||
+        lower.contains('receita') ||
+        lower.contains('utente')) {
       return false;
     }
 
@@ -226,7 +258,10 @@ class PrescriptionParser {
 
   // Extract strength: "500 mg" / "1 g" / "0.5 mg"
   (double?, String?) _extractStrength(String line) {
-    final m = RegExp(r'(\d+([.,]\d+)?)\s*(mg|g|mcg|ml)\b', caseSensitive: false).firstMatch(line);
+    final m = RegExp(
+      r'(\d+([.,]\d+)?)\s*(mg|g|mcg|ml)\b',
+      caseSensitive: false,
+    ).firstMatch(line);
     if (m == null) return (null, null);
 
     final rawNum = m.group(1)!.replaceAll(',', '.');
@@ -268,7 +303,9 @@ class PrescriptionParser {
     }
 
     // "diario", "diaria", "daily", "cada dia"
-    if (RegExp(r'\b(diario|diaria|diariamente|daily|cada dia)\b').hasMatch(normalized)) {
+    if (RegExp(
+      r'\b(diario|diaria|diariamente|daily|cada dia)\b',
+    ).hasMatch(normalized)) {
       return (1, null);
     }
 
@@ -307,8 +344,10 @@ class PrescriptionParser {
   }
 
   int? _extractPackQuantity(String line) {
-    final m = RegExp(r'\b[x×]\s*s?\s*(\d{1,4})\b', caseSensitive: false)
-        .firstMatch(line);
+    final m = RegExp(
+      r'\b[x×]\s*s?\s*(\d{1,4})\b',
+      caseSensitive: false,
+    ).firstMatch(line);
     if (m == null) return null;
     return int.tryParse(m.group(1)!);
   }
@@ -331,7 +370,8 @@ class PrescriptionParser {
 
     final almocoIndex = indexOfToken('almoco');
     if (almocoIndex != null) {
-      final hasPequeno = almocoIndex > 0 && matchesToken(tokens[almocoIndex - 1], 'pequeno');
+      final hasPequeno =
+          almocoIndex > 0 && matchesToken(tokens[almocoIndex - 1], 'pequeno');
       return hasPequeno ? 'ao pequeno almoco' : 'ao almoco';
     }
 
@@ -384,7 +424,11 @@ class PrescriptionParser {
     return cleaned.join(' | ');
   }
 
-  bool _isDosingOnlyLine(String line, {required bool hasStrength, required bool hasDose}) {
+  bool _isDosingOnlyLine(
+    String line, {
+    required bool hasStrength,
+    required bool hasDose,
+  }) {
     if (hasStrength || !hasDose) return false;
     return RegExp(
       r'^\s*(tomar|toma|ingerir|via)?\s*\d+([.,]\d+)?\s*(comprimidos?|comprimido|comprim|comp|cp|tab|tabs|caps?|capsula|capsulas|saquetas?|sache|sachet|sach)\b',
@@ -394,7 +438,10 @@ class PrescriptionParser {
 
   // Guess name: take text before strength, or first 2-4 tokens
   String _guessName(String line) {
-    final m = RegExp(r'(\d+([.,]\d+)?)\s*(mg|g|mcg|ml)\b', caseSensitive: false).firstMatch(line);
+    final m = RegExp(
+      r'(\d+([.,]\d+)?)\s*(mg|g|mcg|ml)\b',
+      caseSensitive: false,
+    ).firstMatch(line);
     if (m != null) {
       final before = line.substring(0, m.start).trim();
       if (before.isNotEmpty) return before;

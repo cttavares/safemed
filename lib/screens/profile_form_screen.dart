@@ -65,9 +65,7 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   Widget build(BuildContext context) {
     final isEditing = widget.profile != null;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEditing ? 'Edit profile' : 'New profile'),
-      ),
+      appBar: AppBar(title: Text(isEditing ? 'Edit profile' : 'New profile')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -166,10 +164,12 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
               border: OutlineInputBorder(),
             ),
             items: ProfileType.values
-                .map((type) => DropdownMenuItem(
-                      value: type,
-                      child: Text(type.displayName),
-                    ))
+                .map(
+                  (type) => DropdownMenuItem(
+                    value: type,
+                    child: Text(type.displayName),
+                  ),
+                )
                 .toList(),
             onChanged: (value) {
               if (value != null) {
@@ -368,21 +368,22 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   }
 
   Future<void> _addAllergy() async {
-    final options = allergySubstanceRules
-        .map((rule) => rule.allergyKeyword)
-        .toSet()
-        .toList()
-      ..sort();
+    final options =
+        allergySubstanceRules
+            .map((rule) => rule.allergyKeyword)
+            .toSet()
+            .toList()
+          ..sort();
 
     final allergy = await showDialog<String>(
       context: context,
-      builder: (_) => _AllergyPickerDialog(
-        options: options,
-        selected: _allergies,
-      ),
+      builder: (_) =>
+          _AllergyPickerDialog(options: options, selected: _allergies),
     );
 
-    if (allergy != null && allergy.isNotEmpty && !_allergies.contains(allergy)) {
+    if (allergy != null &&
+        allergy.isNotEmpty &&
+        !_allergies.contains(allergy)) {
       setState(() => _allergies.add(allergy));
     }
   }
@@ -400,7 +401,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
       ),
     );
 
-    if (restriction != null && restriction.isNotEmpty && !_medicalRestrictions.contains(restriction)) {
+    if (restriction != null &&
+        restriction.isNotEmpty &&
+        !_medicalRestrictions.contains(restriction)) {
       setState(() => _medicalRestrictions.add(restriction));
     }
   }
@@ -432,7 +435,8 @@ class _RestrictionPickerDialog extends StatefulWidget {
   });
 
   @override
-  State<_RestrictionPickerDialog> createState() => _RestrictionPickerDialogState();
+  State<_RestrictionPickerDialog> createState() =>
+      _RestrictionPickerDialogState();
 }
 
 class _RestrictionPickerDialogState extends State<_RestrictionPickerDialog> {
@@ -496,7 +500,9 @@ class _RestrictionPickerDialogState extends State<_RestrictionPickerDialog> {
                         itemCount: _filtered.length,
                         itemBuilder: (context, index) {
                           final item = _filtered[index];
-                          final alreadySelected = widget.selected.contains(item);
+                          final alreadySelected = widget.selected.contains(
+                            item,
+                          );
                           return ListTile(
                             title: Text(item),
                             trailing: alreadySelected
@@ -530,10 +536,7 @@ class _AllergyPickerDialog extends StatefulWidget {
   final List<String> options;
   final List<String> selected;
 
-  const _AllergyPickerDialog({
-    required this.options,
-    required this.selected,
-  });
+  const _AllergyPickerDialog({required this.options, required this.selected});
 
   @override
   State<_AllergyPickerDialog> createState() => _AllergyPickerDialogState();
@@ -600,7 +603,9 @@ class _AllergyPickerDialogState extends State<_AllergyPickerDialog> {
                         itemCount: _filtered.length,
                         itemBuilder: (context, index) {
                           final item = _filtered[index];
-                          final alreadySelected = widget.selected.contains(item);
+                          final alreadySelected = widget.selected.contains(
+                            item,
+                          );
                           return ListTile(
                             title: Text(item),
                             trailing: alreadySelected

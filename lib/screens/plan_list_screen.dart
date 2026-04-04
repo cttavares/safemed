@@ -27,8 +27,8 @@ class PlanListScreen extends StatelessWidget {
           final plans = profileId == null
               ? planStore.plans
               : planStore.plans
-                  .where((plan) => plan.profileId == profileId)
-                  .toList();
+                    .where((plan) => plan.profileId == profileId)
+                    .toList();
           if (plans.isEmpty) {
             final message = profileId == null
                 ? 'No plans yet. Tap + to add one.'

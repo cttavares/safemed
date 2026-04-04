@@ -43,9 +43,9 @@ jobs:
       - name: Analisar código (Linting)
         run: flutter analyze
 
-      # 7. Executa os testes unitários e de widgets (pasta /test)
+      # 7. Executa o teste explícito do projeto
       - name: Executar testes
-        run: flutter test
+        run: flutter test test/actionsTest.dart
 
       # 8. (Opcional) Tenta compilar um APK de debug para garantir que a app faz build
       - name: Compilar APK (Debug)

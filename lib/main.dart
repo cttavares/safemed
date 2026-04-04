@@ -27,10 +27,7 @@ class SafeMedApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Safemed',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.teal,
-      ),
+      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.teal),
       home: const HomeScreen(),
     );
   }

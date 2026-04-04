@@ -51,13 +51,15 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
       }
       if (widget.initialMedications != null) {
         _medications = widget.initialMedications!
-            .map((name) => PlanMedication(
-                  id: _newId(),
-                  name: name,
-                  dose: '',
-                  times: const [],
-                  notes: '',
-                ))
+            .map(
+              (name) => PlanMedication(
+                id: _newId(),
+                name: name,
+                dose: '',
+                times: const [],
+                notes: '',
+              ),
+            )
             .toList();
       }
     }
@@ -123,10 +125,8 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
                   ),
                   items: profiles
                       .map(
-                        (p) => DropdownMenuItem(
-                          value: p.id,
-                          child: Text(p.name),
-                        ),
+                        (p) =>
+                            DropdownMenuItem(value: p.id, child: Text(p.name)),
                       )
                       .toList(),
                   onChanged: profiles.isEmpty
@@ -181,14 +181,15 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              if (_medications.isEmpty)
-                const Text('No medications added yet.'),
+              if (_medications.isEmpty) const Text('No medications added yet.'),
               for (final medication in _medications)
                 Card(
                   child: ListTile(
-                    title: Text(medication.name.isEmpty
-                        ? '(Unnamed medication)'
-                        : medication.name),
+                    title: Text(
+                      medication.name.isEmpty
+                          ? '(Unnamed medication)'
+                          : medication.name,
+                    ),
                     subtitle: Text(_medicationSubtitle(medication)),
                     trailing: Wrap(
                       spacing: 4,
@@ -329,9 +330,9 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -504,10 +505,7 @@ class _EditPlanMedicationDialogState extends State<_EditPlanMedicationDialog> {
           onPressed: () => Navigator.pop(context, null),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _save,
-          child: const Text('Save'),
-        ),
+        FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
   }

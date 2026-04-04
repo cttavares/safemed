@@ -12,7 +12,8 @@ class MedicationExplorerScreen extends StatefulWidget {
   const MedicationExplorerScreen({super.key});
 
   @override
-  State<MedicationExplorerScreen> createState() => _MedicationExplorerScreenState();
+  State<MedicationExplorerScreen> createState() =>
+      _MedicationExplorerScreenState();
 }
 
 class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
@@ -58,7 +59,8 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
   void _onDetect(BarcodeCapture capture) {
     final barcodes = capture.barcodes;
     if (barcodes.isNotEmpty) {
-      final value = barcodes.first.rawValue ?? barcodes.first.displayValue ?? '';
+      final value =
+          barcodes.first.rawValue ?? barcodes.first.displayValue ?? '';
       if (value.isNotEmpty) {
         _handleBarcode(value);
       }
@@ -115,7 +117,9 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
     final snippet = text.replaceAll(RegExp(r'\s+'), ' ');
     if (mounted) {
       setState(() {
-        _lastOcrSnippet = snippet.length > 120 ? '${snippet.substring(0, 120)}...' : snippet;
+        _lastOcrSnippet = snippet.length > 120
+            ? '${snippet.substring(0, 120)}...'
+            : snippet;
       });
     }
   }
@@ -201,10 +205,7 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
             icon: const Icon(Icons.cameraswitch),
             onPressed: _switchCamera,
           ),
-          IconButton(
-            icon: const Icon(Icons.flash_on),
-            onPressed: _toggleTorch,
-          ),
+          IconButton(icon: const Icon(Icons.flash_on), onPressed: _toggleTorch),
         ],
       ),
       body: Column(
@@ -213,10 +214,7 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
             flex: 5,
             child: Stack(
               children: [
-                MobileScanner(
-                  controller: _controller,
-                  onDetect: _onDetect,
-                ),
+                MobileScanner(controller: _controller, onDetect: _onDetect),
                 Positioned(
                   left: 12,
                   right: 12,
@@ -240,7 +238,9 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
                       IconButton(
                         icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
                         onPressed: _toggleListening,
-                        tooltip: _isListening ? 'Stop listening' : 'Speak symptoms or a medication',
+                        tooltip: _isListening
+                            ? 'Stop listening'
+                            : 'Speak symptoms or a medication',
                       ),
                       IconButton(
                         icon: const Icon(Icons.document_scanner),
@@ -266,7 +266,9 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Live OCR'),
-                    subtitle: const Text('Recognize medication names from the camera preview.'),
+                    subtitle: const Text(
+                      'Recognize medication names from the camera preview.',
+                    ),
                     value: _liveOcrEnabled,
                     onChanged: (value) {
                       setState(() => _liveOcrEnabled = value);
@@ -278,7 +280,8 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
                         ? const _EmptyState()
                         : ListView.separated(
                             itemCount: _matches.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 8),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
                             itemBuilder: (context, index) {
                               final match = _matches[index];
                               return _MatchCard(match: match);
@@ -299,10 +302,7 @@ class _StatusCard extends StatelessWidget {
   final String barcode;
   final String ocrSnippet;
 
-  const _StatusCard({
-    required this.barcode,
-    required this.ocrSnippet,
-  });
+  const _StatusCard({required this.barcode, required this.ocrSnippet});
 
   @override
   Widget build(BuildContext context) {
@@ -315,12 +315,16 @@ class _StatusCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              barcode.isEmpty ? 'No barcode detected yet.' : 'Barcode: $barcode',
+              barcode.isEmpty
+                  ? 'No barcode detected yet.'
+                  : 'Barcode: $barcode',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 6),
             Text(
-              ocrSnippet.isEmpty ? 'OCR is waiting for a readable label.' : 'OCR: $ocrSnippet',
+              ocrSnippet.isEmpty
+                  ? 'OCR is waiting for a readable label.'
+                  : 'OCR: $ocrSnippet',
               style: theme.textTheme.bodySmall,
             ),
           ],

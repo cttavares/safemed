@@ -62,7 +62,6 @@ class SubstanceIds {
 /// Medicamentos comuns em Portugal
 const List<Medication> medicamentosBaseDados = [
   // ==================== ANALGÉSICOS / ANTI-INFLAMATÓRIOS ====================
-
   Medication(
     id: 'med_001',
     cnp: '5601151', // Ben-u-ron comprimidos
@@ -89,7 +88,10 @@ const List<Medication> medicamentosBaseDados = [
     idadeMinima: 6,
     sujeitoReceitaMedica: false,
     contraindicacoes: [PathologyIds.insuficienciaHepatica],
-    efeitosSecundariosComuns: ['Dor de cabeça', 'Hepatotoxicidade em sobredose'],
+    efeitosSecundariosComuns: [
+      'Dor de cabeça',
+      'Hepatotoxicidade em sobredose',
+    ],
     interacoesComSubstancias: [],
   ),
 
@@ -127,7 +129,12 @@ const List<Medication> medicamentosBaseDados = [
       PathologyIds.insuficienciaRenal,
       PathologyIds.asma,
     ],
-    efeitosSecundariosComuns: ['Gastrite', 'Dor abdominal', 'Tonturas', 'Reações alérgicas'],
+    efeitosSecundariosComuns: [
+      'Gastrite',
+      'Dor abdominal',
+      'Tonturas',
+      'Reações alérgicas',
+    ],
     interacoesComSubstancias: [SubstanceIds.acido_acetilsalicilico],
   ),
 
@@ -146,7 +153,10 @@ const List<Medication> medicamentosBaseDados = [
       PathologyIds.asma,
       PathologyIds.alergia,
     ],
-    efeitosSecundariosComuns: ['Hemorragia gastrointestinal', 'Problemas de coagulação'],
+    efeitosSecundariosComuns: [
+      'Hemorragia gastrointestinal',
+      'Problemas de coagulação',
+    ],
     interacoesComSubstancias: [SubstanceIds.ibuprofeno],
   ),
 
@@ -165,12 +175,15 @@ const List<Medication> medicamentosBaseDados = [
       PathologyIds.insuficienciaRenal,
       PathologyIds.insuficienciaCardiaca,
     ],
-    efeitosSecundariosComuns: ['Gastrite', 'Retenção de líquidos', 'Reações cutâneas'],
+    efeitosSecundariosComuns: [
+      'Gastrite',
+      'Retenção de líquidos',
+      'Reações cutâneas',
+    ],
     interacoesComSubstancias: [SubstanceIds.ibuprofeno],
   ),
 
   // ==================== ANTIBIÓTICOS ====================
-
   Medication(
     id: 'med_007',
     cnp: '5601049',
@@ -182,7 +195,12 @@ const List<Medication> medicamentosBaseDados = [
     idadeMinima: null,
     sujeitoReceitaMedica: true,
     contraindicacoes: [PathologyIds.alergia], // Alergia a penicilinas
-    efeitosSecundariosComuns: ['Diarreia', 'Náuseas', 'Reações alérgicas', 'Aftas'],
+    efeitosSecundariosComuns: [
+      'Diarreia',
+      'Náuseas',
+      'Reações alérgicas',
+      'Aftas',
+    ],
     interacoesComSubstancias: [],
   ),
 
@@ -205,7 +223,6 @@ const List<Medication> medicamentosBaseDados = [
   ),
 
   // ==================== DIABETES ====================
-
   Medication(
     id: 'med_009',
     cnp: '5440123',
@@ -220,12 +237,16 @@ const List<Medication> medicamentosBaseDados = [
       PathologyIds.insuficienciaRenal,
       PathologyIds.insuficienciaHepatica,
     ],
-    efeitosSecundariosComuns: ['Dor abdominal', 'Diarreia', 'Sabor metálico', 'Acidose láctica (raro)'],
+    efeitosSecundariosComuns: [
+      'Dor abdominal',
+      'Diarreia',
+      'Sabor metálico',
+      'Acidose láctica (raro)',
+    ],
     interacoesComSubstancias: [],
   ),
 
   // ==================== ANTI-HIPERTENSIVOS ====================
-
   Medication(
     id: 'med_010',
     cnp: '5440456',
@@ -233,19 +254,21 @@ const List<Medication> medicamentosBaseDados = [
     formaFarmaceutica: 'Comprimido',
     substanciaAtiva: 'Lisinopril',
     dosagem: '10 mg',
-    riscoGravidez: PregnancyRiskCategory.D, // Risco fetal, especialmente 2º e 3º trimestre
+    riscoGravidez:
+        PregnancyRiskCategory.D, // Risco fetal, especialmente 2º e 3º trimestre
     idadeMinima: 18,
     sujeitoReceitaMedica: true,
-    contraindicacoes: [
-      PathologyIds.insuficienciaRenal,
-      PathologyIds.arritmia,
+    contraindicacoes: [PathologyIds.insuficienciaRenal, PathologyIds.arritmia],
+    efeitosSecundariosComuns: [
+      'Tosse seca',
+      'Tonturas',
+      'Fraqueza',
+      'Hipercaliemia',
     ],
-    efeitosSecundariosComuns: ['Tosse seca', 'Tonturas', 'Fraqueza', 'Hipercaliemia'],
     interacoesComSubstancias: [],
   ),
 
   // ==================== ANTI-ÁCIDOS / GASTROINTESTINAIS ====================
-
   Medication(
     id: 'med_011',
     cnp: '5600750',
@@ -261,13 +284,12 @@ const List<Medication> medicamentosBaseDados = [
       'Dor de cabeça',
       'Diarreia',
       'Interferência na absorção de B12',
-      'Osteoporose (uso prolongado)'
+      'Osteoporose (uso prolongado)',
     ],
     interacoesComSubstancias: [],
   ),
 
   // ==================== ANTIHISTAMÍNICOS ====================
-
   Medication(
     id: 'med_012',
     cnp: '5600834',
@@ -279,12 +301,16 @@ const List<Medication> medicamentosBaseDados = [
     idadeMinima: 12,
     sujeitoReceitaMedica: false,
     contraindicacoes: [],
-    efeitosSecundariosComuns: ['Sonolência', 'Boca seca', 'Tonturas', 'Tremores (raro)'],
+    efeitosSecundariosComuns: [
+      'Sonolência',
+      'Boca seca',
+      'Tonturas',
+      'Tremores (raro)',
+    ],
     interacoesComSubstancias: [],
   ),
 
   // ==================== XAROPES / TOSSE E GRIPE ====================
-
   Medication(
     id: 'med_013',
     cnp: '5600921',
@@ -316,7 +342,6 @@ const List<Medication> medicamentosBaseDados = [
   ),
 
   // ==================== VITAMINAS E SUPLEMENTOS ====================
-
   Medication(
     id: 'med_015',
     cnp: '5600515',
@@ -348,7 +373,6 @@ const List<Medication> medicamentosBaseDados = [
   ),
 
   // ==================== RISCO ELEVADO NA GRAVIDEZ (FDA X) ====================
-
   Medication(
     id: 'med_017',
     cnp: '5600901',
@@ -360,7 +384,11 @@ const List<Medication> medicamentosBaseDados = [
     idadeMinima: 12,
     sujeitoReceitaMedica: true,
     contraindicacoes: [],
-    efeitosSecundariosComuns: ['Teratogenicidade', 'Secura cutânea', 'Alteração hepática'],
+    efeitosSecundariosComuns: [
+      'Teratogenicidade',
+      'Secura cutânea',
+      'Alteração hepática',
+    ],
     interacoesComSubstancias: [],
   ),
 
@@ -375,12 +403,15 @@ const List<Medication> medicamentosBaseDados = [
     idadeMinima: 18,
     sujeitoReceitaMedica: true,
     contraindicacoes: [],
-    efeitosSecundariosComuns: ['Teratogenicidade', 'Neuropatia periférica', 'Sonolência'],
+    efeitosSecundariosComuns: [
+      'Teratogenicidade',
+      'Neuropatia periférica',
+      'Sonolência',
+    ],
     interacoesComSubstancias: [],
   ),
 
   // ==================== CASOS PARA TESTE DE ALERGIAS ====================
-
   Medication(
     id: 'med_019',
     cnp: '5601201',
@@ -407,7 +438,11 @@ const List<Medication> medicamentosBaseDados = [
     idadeMinima: 12,
     sujeitoReceitaMedica: true,
     contraindicacoes: [PathologyIds.alergia],
-    efeitosSecundariosComuns: ['Erupção cutânea', 'Náuseas', 'Fotossensibilidade'],
+    efeitosSecundariosComuns: [
+      'Erupção cutânea',
+      'Náuseas',
+      'Fotossensibilidade',
+    ],
     interacoesComSubstancias: [],
   ),
 
@@ -440,16 +475,16 @@ const List<Medication> medicamentosBaseDados = [
     riscoGravidez: PregnancyRiskCategory.C,
     idadeMinima: 12,
     sujeitoReceitaMedica: false,
-    contraindicacoes: [
-      PathologyIds.hipertensao,
-      PathologyIds.arritmia,
+    contraindicacoes: [PathologyIds.hipertensao, PathologyIds.arritmia],
+    efeitosSecundariosComuns: [
+      'Taquicardia',
+      'Insónia',
+      'Aumento da pressão arterial',
     ],
-    efeitosSecundariosComuns: ['Taquicardia', 'Insónia', 'Aumento da pressão arterial'],
     interacoesComSubstancias: [],
   ),
 
   // ==================== CARDIO / METABÓLICO ====================
-
   Medication(
     id: 'med_023',
     cnp: '5601401',
@@ -514,7 +549,6 @@ const List<Medication> medicamentosBaseDados = [
   ),
 
   // ==================== SNC / PSIQUIATRIA ====================
-
   Medication(
     id: 'med_027',
     cnp: '5601405',
@@ -546,7 +580,6 @@ const List<Medication> medicamentosBaseDados = [
   ),
 
   // ==================== ENDOCRINO ====================
-
   Medication(
     id: 'med_029',
     cnp: '5601407',
@@ -563,7 +596,6 @@ const List<Medication> medicamentosBaseDados = [
   ),
 
   // ==================== ANTIBIÓTICOS EXTRA ====================
-
   Medication(
     id: 'med_030',
     cnp: '5601408',
@@ -575,7 +607,11 @@ const List<Medication> medicamentosBaseDados = [
     idadeMinima: 12,
     sujeitoReceitaMedica: true,
     contraindicacoes: [PathologyIds.arritmia],
-    efeitosSecundariosComuns: ['Náuseas', 'Diarreia', 'Prolongamento QT (raro)'],
+    efeitosSecundariosComuns: [
+      'Náuseas',
+      'Diarreia',
+      'Prolongamento QT (raro)',
+    ],
     interacoesComSubstancias: [SubstanceIds.pseudoefedrina],
   ),
 ];
@@ -593,9 +629,11 @@ Medication? getMedicationById(String id) {
 List<Medication> searchMedicationByName(String query) {
   final lowerQuery = query.toLowerCase();
   return medicamentosBaseDados
-      .where((med) =>
-          med.nomeComercial.toLowerCase().contains(lowerQuery) ||
-          med.substanciaAtiva.toLowerCase().contains(lowerQuery))
+      .where(
+        (med) =>
+            med.nomeComercial.toLowerCase().contains(lowerQuery) ||
+            med.substanciaAtiva.toLowerCase().contains(lowerQuery),
+      )
       .cast<Medication>()
       .toList();
 }

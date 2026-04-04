@@ -3,10 +3,7 @@ import '../../models/medication_entry.dart';
 
 class ConfirmMedicationsScreen extends StatefulWidget {
   final List<MedicationEntry> initial;
-  const ConfirmMedicationsScreen({
-    super.key,
-    required this.initial,
-  });
+  const ConfirmMedicationsScreen({super.key, required this.initial});
 
   @override
   State<ConfirmMedicationsScreen> createState() =>
@@ -54,97 +51,91 @@ class _ConfirmMedicationsScreenState extends State<ConfirmMedicationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Confirm medications'),
-      ),
+      appBar: AppBar(title: const Text('Confirm medications')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             const Text(
               'We extracted these medications from the prescription. '
-                  'Please confirm and edit any mistakes.',
+              'Please confirm and edit any mistakes.',
             ),
             const SizedBox(height: 12),
 
             Expanded(
               child: _items.isEmpty
-                  ? const Center(
-                child: Text('No medications detected.'),
-              )
+                  ? const Center(child: Text('No medications detected.'))
                   : ListView.separated(
-                itemCount: _items.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, i) {
-                  final m = _items[i];
-                  return Card(
-                    elevation: 1,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildNameText(context, m),
-                              ),
-                              IconButton(
-                                tooltip: 'Edit',
-                                onPressed: () => _editItem(i),
-                                icon: const Icon(Icons.edit),
-                              ),
-                              IconButton(
-                                tooltip: 'Delete',
-                                onPressed: () => _deleteItem(i),
-                                icon: const Icon(Icons.delete_outline),
-                              ),
-                            ],
+                      itemCount: _items.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, i) {
+                        final m = _items[i];
+                        return Card(
+                          elevation: 1,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(child: _buildNameText(context, m)),
+                                    IconButton(
+                                      tooltip: 'Edit',
+                                      onPressed: () => _editItem(i),
+                                      icon: const Icon(Icons.edit),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Delete',
+                                      onPressed: () => _deleteItem(i),
+                                      icon: const Icon(Icons.delete_outline),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 6),
+
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    if (_formatStrength(m).isNotEmpty)
+                                      _Chip(
+                                        label: _formatStrength(m),
+                                        icon: Icons.local_pharmacy_outlined,
+                                      ),
+                                    if (m.timesPerDay != null)
+                                      _Chip(
+                                        label: '${m.timesPerDay}x/day',
+                                        icon: Icons.schedule,
+                                      ),
+                                    if (m.interval != null &&
+                                        m.interval!.trim().isNotEmpty)
+                                      _Chip(
+                                        label: m.interval!,
+                                        icon: Icons.timelapse,
+                                      ),
+                                    if (_formatDailyDose(m).isNotEmpty)
+                                      _Chip(
+                                        label: _formatDailyDose(m),
+                                        icon: Icons.medication_outlined,
+                                      ),
+                                    if (m.intakeNotes != null &&
+                                        m.intakeNotes!.trim().isNotEmpty)
+                                      _Chip(
+                                        label: 'Toma: ${m.intakeNotes}',
+                                        icon: Icons.restaurant,
+                                      ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 8),
+                              ],
+                            ),
                           ),
-
-                          const SizedBox(height: 6),
-
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              if (_formatStrength(m).isNotEmpty)
-                                _Chip(
-                                  label: _formatStrength(m),
-                                  icon: Icons.local_pharmacy_outlined,
-                                ),
-                              if (m.timesPerDay != null)
-                                _Chip(
-                                  label: '${m.timesPerDay}x/day',
-                                  icon: Icons.schedule,
-                                ),
-                              if (m.interval != null &&
-                                  m.interval!.trim().isNotEmpty)
-                                _Chip(
-                                  label: m.interval!,
-                                  icon: Icons.timelapse,
-                                ),
-                              if (_formatDailyDose(m).isNotEmpty)
-                                _Chip(
-                                  label: _formatDailyDose(m),
-                                  icon: Icons.medication_outlined,
-                                ),
-                              if (m.intakeNotes != null &&
-                                  m.intakeNotes!.trim().isNotEmpty)
-                                _Chip(
-                                  label: 'Toma: ${m.intakeNotes}',
-                                  icon: Icons.restaurant,
-                                ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 8),
-                        ],
-                      ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
 
             const SizedBox(height: 12),
@@ -182,10 +173,9 @@ class _ConfirmMedicationsScreenState extends State<ConfirmMedicationsScreen> {
     final u = m.strengthUnit;
     final pack = m.packQuantity;
 
-    final strengthText =
-        (v != null && u != null && u.trim().isNotEmpty)
-            ? '${(v == v.roundToDouble()) ? v.toInt().toString() : v.toString()} $u'
-            : '';
+    final strengthText = (v != null && u != null && u.trim().isNotEmpty)
+        ? '${(v == v.roundToDouble()) ? v.toInt().toString() : v.toString()} $u'
+        : '';
     final packText = (pack != null) ? ' x $pack' : '';
 
     final combined = '$strengthText$packText'.trim();
@@ -200,9 +190,9 @@ class _ConfirmMedicationsScreenState extends State<ConfirmMedicationsScreen> {
     return RichText(
       text: TextSpan(
         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
         children: [
           if (boxInfo.isNotEmpty)
             TextSpan(
@@ -238,8 +228,9 @@ class _ConfirmMedicationsScreenState extends State<ConfirmMedicationsScreen> {
     final unit = (m.doseUnit != null && m.doseUnit!.trim().isNotEmpty)
         ? m.doseUnit!.trim()
         : 'unid';
-    final dailyText =
-        (daily == daily.roundToDouble()) ? daily.toInt().toString() : daily.toString();
+    final dailyText = (daily == daily.roundToDouble())
+        ? daily.toInt().toString()
+        : daily.toString();
     return 'Dose diaria: $dailyText $unit/dia';
   }
 }
@@ -252,10 +243,7 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Chip(
-      avatar: Icon(icon, size: 18),
-      label: Text(label),
-    );
+    return Chip(avatar: Icon(icon, size: 18), label: Text(label));
   }
 }
 
@@ -318,15 +306,20 @@ class _EditMedicationDialogState extends State<_EditMedicationDialog> {
 
   void _save() {
     final name = _name.text.trim();
-    final brandName = _brandName.text.trim().isEmpty ? null : _brandName.text.trim();
-    final intakeNotes =
-        _intakeNotes.text.trim().isEmpty ? null : _intakeNotes.text.trim();
+    final brandName = _brandName.text.trim().isEmpty
+        ? null
+        : _brandName.text.trim();
+    final intakeNotes = _intakeNotes.text.trim().isEmpty
+        ? null
+        : _intakeNotes.text.trim();
 
     final strengthValue = _parseDouble(_strengthValue.text);
     final strengthUnit = _strengthUnit;
 
     final timesPerDay = _parseInt(_timesPerDay.text);
-    final interval = _interval.text.trim().isEmpty ? null : _interval.text.trim();
+    final interval = _interval.text.trim().isEmpty
+        ? null
+        : _interval.text.trim();
 
     final updated = MedicationEntry(
       rawLine: widget.item.rawLine,
@@ -384,8 +377,9 @@ class _EditMedicationDialogState extends State<_EditMedicationDialog> {
                 Expanded(
                   child: TextField(
                     controller: _strengthValue,
-                    keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Strength',
                       hintText: 'e.g. 500',
@@ -434,10 +428,7 @@ class _EditMedicationDialogState extends State<_EditMedicationDialog> {
           onPressed: () => Navigator.pop(context, null),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _save,
-          child: const Text('Save'),
-        ),
+        FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
   }

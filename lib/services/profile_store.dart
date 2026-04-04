@@ -34,9 +34,7 @@ class ProfileStore extends ChangeNotifier {
       _profiles
         ..clear()
         ..addAll(
-          decoded
-              .whereType<Map<String, dynamic>>()
-              .map(Profile.fromJson),
+          decoded.whereType<Map<String, dynamic>>().map(Profile.fromJson),
         );
       notifyListeners();
     } catch (_) {

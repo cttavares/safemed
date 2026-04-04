@@ -26,9 +26,9 @@ class PlanStore extends ChangeNotifier {
       _plans
         ..clear()
         ..addAll(
-          decoded
-              .whereType<Map<String, dynamic>>()
-              .map(PrescriptionPlan.fromJson),
+          decoded.whereType<Map<String, dynamic>>().map(
+            PrescriptionPlan.fromJson,
+          ),
         );
       notifyListeners();
     } catch (_) {

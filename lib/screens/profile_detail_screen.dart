@@ -48,8 +48,8 @@ class ProfileDetailScreen extends StatelessWidget {
                         profile.category == ProfileType.child
                             ? Icons.child_care
                             : profile.category == ProfileType.elderly
-                                ? Icons.elderly
-                                : Icons.person,
+                            ? Icons.elderly
+                            : Icons.person,
                         size: 32,
                       ),
                       const SizedBox(width: 12),
@@ -83,8 +83,8 @@ class ProfileDetailScreen extends StatelessWidget {
                           profile.sex.displayName +
                               (profile.sex == BiologicalSex.female
                                   ? (profile.isPregnant
-                                      ? ' • Gravida'
-                                      : ' • Nao gravida')
+                                        ? ' • Gravida'
+                                        : ' • Nao gravida')
                                   : ''),
                           style: const TextStyle(fontSize: 16),
                         ),
@@ -108,17 +108,22 @@ class ProfileDetailScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: profile.allergies
-                          .map((allergy) => Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.warning_amber_rounded,
-                                        size: 20, color: Colors.orange),
-                                    const SizedBox(width: 8),
-                                    Expanded(child: Text(allergy)),
-                                  ],
-                                ),
-                              ))
+                          .map(
+                            (allergy) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 20,
+                                    color: Colors.orange,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text(allergy)),
+                                ],
+                              ),
+                            ),
+                          )
                           .toList(),
                     ),
                   ),
@@ -134,17 +139,22 @@ class ProfileDetailScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: profile.medicalRestrictions
-                          .map((restriction) => Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.info_outline,
-                                        size: 20, color: Colors.blue),
-                                    const SizedBox(width: 8),
-                                    Expanded(child: Text(restriction)),
-                                  ],
-                                ),
-                              ))
+                          .map(
+                            (restriction) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.info_outline,
+                                    size: 20,
+                                    color: Colors.blue,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text(restriction)),
+                                ],
+                              ),
+                            ),
+                          )
                           .toList(),
                     ),
                   ),
@@ -225,12 +235,8 @@ class ProfileDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: () => _confirmDelete(
-                  context,
-                  profileStore,
-                  planStore,
-                  profile,
-                ),
+                onPressed: () =>
+                    _confirmDelete(context, profileStore, planStore, profile),
                 icon: const Icon(Icons.delete_outline),
                 label: const Text('Delete profile'),
               ),
@@ -340,10 +346,7 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(fontWeight: FontWeight.w600),
-    );
+    return Text(title, style: const TextStyle(fontWeight: FontWeight.w600));
   }
 }
 

@@ -45,9 +45,7 @@ List<PlanOccurrence> buildOccurrencesForDay({
   required List<PrescriptionPlan> plans,
   required List<Profile> profiles,
 }) {
-  final profileById = {
-    for (final profile in profiles) profile.id: profile,
-  };
+  final profileById = {for (final profile in profiles) profile.id: profile};
 
   final occurrences = <PlanOccurrence>[];
   for (final plan in plans) {
