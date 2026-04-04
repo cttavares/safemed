@@ -237,7 +237,10 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
   Future<void> _addMedication() async {
     final result = await showDialog<PlanMedication>(
       context: context,
-      builder: (_) => MedicationPickerDialog(profileId: _profileId),
+      builder: (_) => MedicationPickerDialog(
+        profileId: _profileId,
+        existingPlanMedications: _medications,
+      ),
     );
 
     if (result != null) {
@@ -251,6 +254,9 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
       builder: (_) => MedicationPickerDialog(
         initialMedication: medication,
         profileId: _profileId,
+        existingPlanMedications: _medications
+            .where((m) => m.id != medication.id)
+            .toList(),
       ),
     );
 

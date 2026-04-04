@@ -150,12 +150,14 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
               });
             },
           ),
-          if (_sex == BiologicalSex.female)
+          if (_sex == BiologicalSex.female) ...[
+            const SizedBox(height: 12),
             CheckboxListTile(
-              title: const Text('Gravida'),
+              title: const Text('Está grávida'),
               value: _isPregnant,
               onChanged: (v) => setState(() => _isPregnant = v ?? false),
             ),
+          ],
           const SizedBox(height: 12),
           DropdownButtonFormField<ProfileType>(
             value: _category,
@@ -390,35 +392,11 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   }
 
   Future<void> _addMedicalRestriction() async {
-    final controller = TextEditingController();
     final restriction = await showDialog<String>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add Medical Restriction'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              hintText: 'e.g., Cannot swallow pills, Lactose intolerant',
-              border: OutlineInputBorder(),
-            ),
-            autofocus: true,
-            maxLines: 2,
-            onChanged: (_) => setDialogState(() {}),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: controller.text.trim().isEmpty
-                  ? null
-                  : () => Navigator.pop(context, controller.text.trim()),
-              child: const Text('Add'),
-            ),
-          ],
-        ),
+      builder: (_) => _RestrictionPickerDialog(
+        options: medicalRestrictionOptions,
+        selected: _medicalRestrictions,
       ),
     );
 
@@ -441,6 +419,110 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
       return null;
     }
     return FileImage(file);
+  }
+}
+
+class _RestrictionPickerDialog extends StatefulWidget {
+  final List<String> options;
+  final List<String> selected;
+
+  const _RestrictionPickerDialog({
+    required this.options,
+    required this.selected,
+  });
+
+  @override
+  State<_RestrictionPickerDialog> createState() => _RestrictionPickerDialogState();
+}
+
+class _RestrictionPickerDialogState extends State<_RestrictionPickerDialog> {
+  final TextEditingController _searchController = TextEditingController();
+  late List<String> _filtered;
+
+  @override
+  void initState() {
+    super.initState();
+    _filtered = List.of(widget.options);
+    _searchController.addListener(_filter);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filter() {
+    final query = _searchController.text.trim().toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filtered = List.of(widget.options);
+      } else {
+        _filtered = widget.options
+            .where((item) => item.toLowerCase().contains(query))
+            .toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: SizedBox(
+        width: 520,
+        height: 500,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text(
+                'Escolher restrição',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  hintText: 'Pesquisar restrição...',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: _filtered.isEmpty
+                    ? const Center(child: Text('Sem resultados'))
+                    : ListView.builder(
+                        itemCount: _filtered.length,
+                        itemBuilder: (context, index) {
+                          final item = _filtered[index];
+                          final alreadySelected = widget.selected.contains(item);
+                          return ListTile(
+                            title: Text(item),
+                            trailing: alreadySelected
+                                ? const Icon(Icons.check, color: Colors.green)
+                                : null,
+                            enabled: !alreadySelected,
+                            onTap: alreadySelected
+                                ? null
+                                : () => Navigator.pop(context, item),
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

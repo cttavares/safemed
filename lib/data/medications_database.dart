@@ -44,6 +44,19 @@ class SubstanceIds {
   static const String lisinopril = 'lisinopril';
   static const String amoxicilina = 'amoxicilina';
   static const String omeprazol = 'omeprazol';
+  static const String isotretinoina = 'isotretinoina';
+  static const String talidomida = 'talidomida';
+  static const String sulfametoxazol = 'sulfametoxazol';
+  static const String prednisolona = 'prednisolona';
+  static const String pseudoefedrina = 'pseudoefedrina';
+  static const String atorvastatina = 'atorvastatina';
+  static const String varfarina = 'varfarina';
+  static const String sertralina = 'sertralina';
+  static const String diazepam = 'diazepam';
+  static const String levotiroxina = 'levotiroxina';
+  static const String furosemida = 'furosemida';
+  static const String amlodipina = 'amlodipina';
+  static const String azitromicina = 'azitromicina';
 }
 
 /// Medicamentos comuns em Portugal
@@ -332,6 +345,238 @@ const List<Medication> medicamentosBaseDados = [
     contraindicacoes: [],
     efeitosSecundariosComuns: ['Hipercalcemia (sobredose crónica)'],
     interacoesComSubstancias: [],
+  ),
+
+  // ==================== RISCO ELEVADO NA GRAVIDEZ (FDA X) ====================
+
+  Medication(
+    id: 'med_017',
+    cnp: '5600901',
+    nomeComercial: 'Roacutan',
+    formaFarmaceutica: 'Cápsula',
+    substanciaAtiva: 'Isotretinoína',
+    dosagem: '20 mg',
+    riscoGravidez: PregnancyRiskCategory.X,
+    idadeMinima: 12,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [],
+    efeitosSecundariosComuns: ['Teratogenicidade', 'Secura cutânea', 'Alteração hepática'],
+    interacoesComSubstancias: [],
+  ),
+
+  Medication(
+    id: 'med_018',
+    cnp: '5600902',
+    nomeComercial: 'Talidomida Generis',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Talidomida',
+    dosagem: '100 mg',
+    riscoGravidez: PregnancyRiskCategory.X,
+    idadeMinima: 18,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [],
+    efeitosSecundariosComuns: ['Teratogenicidade', 'Neuropatia periférica', 'Sonolência'],
+    interacoesComSubstancias: [],
+  ),
+
+  // ==================== CASOS PARA TESTE DE ALERGIAS ====================
+
+  Medication(
+    id: 'med_019',
+    cnp: '5601201',
+    nomeComercial: 'Ampicilina Labesfal',
+    formaFarmaceutica: 'Cápsula',
+    substanciaAtiva: 'Ampicilina',
+    dosagem: '500 mg',
+    riscoGravidez: PregnancyRiskCategory.B,
+    idadeMinima: 12,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [PathologyIds.alergia],
+    efeitosSecundariosComuns: ['Náuseas', 'Diarreia', 'Reação alérgica'],
+    interacoesComSubstancias: [],
+  ),
+
+  Medication(
+    id: 'med_020',
+    cnp: '5601202',
+    nomeComercial: 'Bactrim Forte',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Sulfametoxazol + Trimetoprim',
+    dosagem: '800 mg + 160 mg',
+    riscoGravidez: PregnancyRiskCategory.D,
+    idadeMinima: 12,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [PathologyIds.alergia],
+    efeitosSecundariosComuns: ['Erupção cutânea', 'Náuseas', 'Fotossensibilidade'],
+    interacoesComSubstancias: [],
+  ),
+
+  Medication(
+    id: 'med_021',
+    cnp: '5601301',
+    nomeComercial: 'Prednisona Teva',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Prednisolona',
+    dosagem: '20 mg',
+    riscoGravidez: PregnancyRiskCategory.C,
+    idadeMinima: 12,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [
+      PathologyIds.diabetes,
+      PathologyIds.hipertensao,
+      PathologyIds.insuficienciaHepatica,
+    ],
+    efeitosSecundariosComuns: ['Aumento da glicemia', 'Hipertensão', 'Insónia'],
+    interacoesComSubstancias: [],
+  ),
+
+  Medication(
+    id: 'med_022',
+    cnp: '5601302',
+    nomeComercial: 'Actifed',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Pseudoefedrina',
+    dosagem: '60 mg',
+    riscoGravidez: PregnancyRiskCategory.C,
+    idadeMinima: 12,
+    sujeitoReceitaMedica: false,
+    contraindicacoes: [
+      PathologyIds.hipertensao,
+      PathologyIds.arritmia,
+    ],
+    efeitosSecundariosComuns: ['Taquicardia', 'Insónia', 'Aumento da pressão arterial'],
+    interacoesComSubstancias: [],
+  ),
+
+  // ==================== CARDIO / METABÓLICO ====================
+
+  Medication(
+    id: 'med_023',
+    cnp: '5601401',
+    nomeComercial: 'Atoris',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Atorvastatina',
+    dosagem: '20 mg',
+    riscoGravidez: PregnancyRiskCategory.X,
+    idadeMinima: 18,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [PathologyIds.insuficienciaHepatica],
+    efeitosSecundariosComuns: ['Mialgias', 'Elevação de enzimas hepáticas'],
+    interacoesComSubstancias: [],
+  ),
+
+  Medication(
+    id: 'med_024',
+    cnp: '5601402',
+    nomeComercial: 'Varfine',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Varfarina',
+    dosagem: '5 mg',
+    riscoGravidez: PregnancyRiskCategory.X,
+    idadeMinima: 18,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [PathologyIds.anemia],
+    efeitosSecundariosComuns: ['Risco hemorrágico', 'Hematomas'],
+    interacoesComSubstancias: [
+      SubstanceIds.acido_acetilsalicilico,
+      SubstanceIds.ibuprofeno,
+    ],
+  ),
+
+  Medication(
+    id: 'med_025',
+    cnp: '5601403',
+    nomeComercial: 'Amlodipina Generis',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Amlodipina',
+    dosagem: '5 mg',
+    riscoGravidez: PregnancyRiskCategory.C,
+    idadeMinima: 18,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [PathologyIds.insuficienciaCardiaca],
+    efeitosSecundariosComuns: ['Edema periférico', 'Cefaleias', 'Rubor'],
+    interacoesComSubstancias: [],
+  ),
+
+  Medication(
+    id: 'med_026',
+    cnp: '5601404',
+    nomeComercial: 'Lasix',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Furosemida',
+    dosagem: '40 mg',
+    riscoGravidez: PregnancyRiskCategory.C,
+    idadeMinima: 18,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [PathologyIds.insuficienciaRenal],
+    efeitosSecundariosComuns: ['Desidratação', 'Hipocaliemia', 'Tonturas'],
+    interacoesComSubstancias: [SubstanceIds.lisinopril],
+  ),
+
+  // ==================== SNC / PSIQUIATRIA ====================
+
+  Medication(
+    id: 'med_027',
+    cnp: '5601405',
+    nomeComercial: 'Zoloft',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Sertralina',
+    dosagem: '50 mg',
+    riscoGravidez: PregnancyRiskCategory.C,
+    idadeMinima: 18,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [],
+    efeitosSecundariosComuns: ['Náuseas', 'Insónia', 'Ansiedade inicial'],
+    interacoesComSubstancias: [SubstanceIds.acido_acetilsalicilico],
+  ),
+
+  Medication(
+    id: 'med_028',
+    cnp: '5601406',
+    nomeComercial: 'Valium',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Diazepam',
+    dosagem: '5 mg',
+    riscoGravidez: PregnancyRiskCategory.D,
+    idadeMinima: 18,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [PathologyIds.dopc],
+    efeitosSecundariosComuns: ['Sonolência', 'Confusão', 'Fraqueza muscular'],
+    interacoesComSubstancias: [SubstanceIds.talidomida],
+  ),
+
+  // ==================== ENDOCRINO ====================
+
+  Medication(
+    id: 'med_029',
+    cnp: '5601407',
+    nomeComercial: 'Eutirox',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Levotiroxina',
+    dosagem: '100 mcg',
+    riscoGravidez: PregnancyRiskCategory.A,
+    idadeMinima: 12,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [PathologyIds.arritmia],
+    efeitosSecundariosComuns: ['Taquicardia em sobredosagem', 'Nervosismo'],
+    interacoesComSubstancias: [],
+  ),
+
+  // ==================== ANTIBIÓTICOS EXTRA ====================
+
+  Medication(
+    id: 'med_030',
+    cnp: '5601408',
+    nomeComercial: 'Zitromax',
+    formaFarmaceutica: 'Comprimido',
+    substanciaAtiva: 'Azitromicina',
+    dosagem: '500 mg',
+    riscoGravidez: PregnancyRiskCategory.B,
+    idadeMinima: 12,
+    sujeitoReceitaMedica: true,
+    contraindicacoes: [PathologyIds.arritmia],
+    efeitosSecundariosComuns: ['Náuseas', 'Diarreia', 'Prolongamento QT (raro)'],
+    interacoesComSubstancias: [SubstanceIds.pseudoefedrina],
   ),
 ];
 

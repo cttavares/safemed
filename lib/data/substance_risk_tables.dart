@@ -20,6 +20,15 @@ class SubstancePregnancyRule {
   });
 }
 
+const List<String> medicalRestrictionOptions = [
+  'Disfagia (dificuldade de deglutição)',
+  'Necessidade de forma farmacêutica líquida',
+  'Intolerância à lactose',
+  'Evitar sedação (risco de quedas)',
+  'Necessidade de administração com alimento',
+  'Evitar anti-inflamatórios não esteroides',
+];
+
 const List<AllergySubstanceRule> allergySubstanceRules = [
   AllergySubstanceRule(
     allergyKeyword: 'Penicilina',
