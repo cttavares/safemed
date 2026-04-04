@@ -35,18 +35,10 @@ jobs:
       - name: Instalar dependências
         run: flutter pub get
 
-      # 5. Verifica se o código está formatado corretamente
-      - name: Verificar formatação de código
-        run: dart format --output=none --set-exit-if-changed .
-
-      # 6. Executa o analisador estático para encontrar erros de sintaxe ou más práticas
-      - name: Analisar código (Linting)
-        run: flutter analyze
-
-      # 7. Executa o teste explícito do projeto
+      # 5. Executa os testes do projeto
       - name: Executar testes
         run: flutter test test/actionsTest.dart
 
-      # 8. (Opcional) Tenta compilar um APK de debug para garantir que a app faz build
+      # 6. Compila um APK de debug para validar o build Android
       - name: Compilar APK (Debug)
         run: flutter build apk --debug

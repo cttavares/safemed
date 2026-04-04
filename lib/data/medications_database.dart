@@ -38,7 +38,7 @@ class PathologyIds {
 class SubstanceIds {
   static const String paracetamol = 'paracetamol';
   static const String ibuprofeno = 'ibuprofeno';
-  static const String acido_acetilsalicilico = 'acido_acetilsalicilico';
+  static const String acidoAcetilsalicilico = 'acido_acetilsalicilico';
   static const String diclofenaco = 'diclofenaco';
   static const String metformina = 'metformina';
   static const String lisinopril = 'lisinopril';
@@ -111,7 +111,7 @@ const List<Medication> medicamentosBaseDados = [
       PathologyIds.asma,
     ],
     efeitosSecundariosComuns: ['Gastrite', 'Dor abdominal', 'Tonturas'],
-    interacoesComSubstancias: [SubstanceIds.acido_acetilsalicilico],
+    interacoesComSubstancias: [SubstanceIds.acidoAcetilsalicilico],
   ),
 
   Medication(
@@ -135,7 +135,7 @@ const List<Medication> medicamentosBaseDados = [
       'Tonturas',
       'Reações alérgicas',
     ],
-    interacoesComSubstancias: [SubstanceIds.acido_acetilsalicilico],
+    interacoesComSubstancias: [SubstanceIds.acidoAcetilsalicilico],
   ),
 
   Medication(
@@ -513,7 +513,7 @@ const List<Medication> medicamentosBaseDados = [
     contraindicacoes: [PathologyIds.anemia],
     efeitosSecundariosComuns: ['Risco hemorrágico', 'Hematomas'],
     interacoesComSubstancias: [
-      SubstanceIds.acido_acetilsalicilico,
+      SubstanceIds.acidoAcetilsalicilico,
       SubstanceIds.ibuprofeno,
     ],
   ),
@@ -561,7 +561,7 @@ const List<Medication> medicamentosBaseDados = [
     sujeitoReceitaMedica: true,
     contraindicacoes: [],
     efeitosSecundariosComuns: ['Náuseas', 'Insónia', 'Ansiedade inicial'],
-    interacoesComSubstancias: [SubstanceIds.acido_acetilsalicilico],
+    interacoesComSubstancias: [SubstanceIds.acidoAcetilsalicilico],
   ),
 
   Medication(
