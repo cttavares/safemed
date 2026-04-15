@@ -1,0 +1,15 @@
+names:
+- blister
+- caixa
+- tubo
+- tubo_efervescente
+nc: 4
+roboflow:
+  license: CC BY 4.0
+  project: safemed_med_recognition-zcroy
+  url: https://universe.roboflow.com/luss-workspace-u3jzw/safemed_med_recognition-zcroy/dataset/2
+  version: 2
+  workspace: luss-workspace-u3jzw
+test: ../test/images
+train: ../train/images
+val: ../valid/images

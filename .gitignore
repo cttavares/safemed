@@ -84,3 +84,8 @@ build/web/
 *.o
 *.a
 *.lib
+
+
+# python
+__pycache__/
+*.pyc

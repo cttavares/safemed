@@ -1,0 +1,25 @@
+description: Ultralytics YOLO11s model trained on C:\Users\luisf\Documents\SAFEMED_REPO\safemed\med_recognition_train\dataset\current\data.yaml
+author: Ultralytics
+date: '2026-04-15T01:16:24.412374'
+version: 8.4.37
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 640
+- 640
+names:
+  0: blister
+  1: caixa
+  2: tubo
+  3: tubo_efervescente
+args:
+  batch: 1
+  fraction: 1.0
+  half: false
+  int8: true
+  nms: false
+channels: 3
+end2end: false

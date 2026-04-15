@@ -98,8 +98,8 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/app_icon_small.png"
+  image_path: "assets/images/app_icon/app_icon_small.png"
 #  min_sdk_android: 21
   adaptive_icon_background: "#FFFFFF" # white
-  adaptive_icon_foreground: "assets/images/app_icon_small_no-bg.png"
+  adaptive_icon_foreground: "assets/images/app_icon/app_icon_small_no-bg.png"
 #  adaptive_icon_foreground_inset: 15 # 8 - 16 is a good range (default is 0)

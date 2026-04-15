@@ -11,8 +11,7 @@ A crescente complexidade terapêutica e a frequência de erros de medicação re
 um desafio significativo para a segurança do doente. Muitos utentes, especialmente os
 polimedicados, desconhecem as interações, contraindicações ou riscos associados aos fár-
 macos prescritos. A SafeMed surge como resposta a esta lacuna, combinando informação
-científica fiável com uma interface acessível, inspirada em iniciativas de referência inter-
-nacionais que oferecem avaliação de risco simplificada e compreensível.
+científica fiável com uma interface acessível e avaliação de risco simplificada e compreensível.
 ```
 
 ## Descrição

@@ -8,6 +8,8 @@ import '../services/medication_explorer_service.dart';
 import '../services/ocr_service.dart';
 import 'scanner/ocr_screen.dart';
 
+enum _ExplorerMode { choose, camera, textSearch }
+
 class MedicationExplorerScreen extends StatefulWidget {
   const MedicationExplorerScreen({super.key});
 
@@ -32,6 +34,8 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
   bool _busyOcr = false;
   bool _liveOcrEnabled = true;
   bool _isListening = false;
+  String? _speechLocaleId;
+  _ExplorerMode _mode = _ExplorerMode.choose;
 
   String _lastBarcode = '';
   String _lastOcrSnippet = '';
@@ -155,6 +159,60 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
     _handleOcrText(recognizedText);
   }
 
+  void _openCameraMode() {
+    setState(() {
+      _mode = _ExplorerMode.camera;
+    });
+  }
+
+  void _openTextMode() {
+    setState(() {
+      _mode = _ExplorerMode.textSearch;
+    });
+  }
+
+  void _backToChooser() {
+    setState(() {
+      _mode = _ExplorerMode.choose;
+      _isListening = false;
+    });
+    _speech.stop();
+  }
+
+  Future<String?> _resolveSpeechLocaleId() async {
+    if (_speechLocaleId != null) {
+      return _speechLocaleId;
+    }
+
+    try {
+      final locales = await _speech.locales();
+      const preferredLocales = ['pt_BR', 'pt_PT'];
+
+      for (final preferred in preferredLocales) {
+        for (final locale in locales) {
+          if (locale.localeId == preferred) {
+            _speechLocaleId = locale.localeId;
+            return _speechLocaleId;
+          }
+        }
+      }
+
+      for (final locale in locales) {
+        if (locale.localeId.toLowerCase().startsWith('pt')) {
+          _speechLocaleId = locale.localeId;
+          return _speechLocaleId;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final systemLocale = await _speech.systemLocale();
+      _speechLocaleId = systemLocale?.localeId;
+    } catch (_) {}
+
+    return _speechLocaleId;
+  }
+
   Future<void> _toggleListening() async {
     if (_isListening) {
       await _speech.stop();
@@ -166,8 +224,10 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
     final available = await _speech.initialize();
     if (!available || !mounted) return;
 
+    final localeId = await _resolveSpeechLocaleId();
     setState(() => _isListening = true);
     await _speech.listen(
+      localeId: localeId,
       onResult: (result) {
         final text = result.recognizedWords;
         if (text.isEmpty || !mounted) return;
@@ -201,98 +261,293 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
       appBar: AppBar(
         title: const Text('Medication Explorer'),
         actions: [
+          if (_mode != _ExplorerMode.choose)
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: _backToChooser,
+              tooltip: 'Voltar',
+            ),
           IconButton(
             icon: const Icon(Icons.cameraswitch),
             onPressed: _switchCamera,
+            tooltip: 'Trocar câmara',
           ),
-          IconButton(icon: const Icon(Icons.flash_on), onPressed: _toggleTorch),
+          IconButton(
+            icon: const Icon(Icons.flash_on),
+            onPressed: _toggleTorch,
+            tooltip: 'Flash',
+          ),
         ],
       ),
-      body: Column(
+      body: switch (_mode) {
+        _ExplorerMode.choose => _buildChooserView(context),
+        _ExplorerMode.camera => _buildCameraView(context),
+        _ExplorerMode.textSearch => _buildTextSearchView(context),
+      },
+    );
+  }
+
+  Widget _buildChooserView(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Text(
+            'Como quer procurar?',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Escolha entre usar a câmara para detetar medicamentos ou usar texto/voz para procurar sintomas, nome do medicamento e substâncias ativas.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 20),
           Expanded(
-            flex: 5,
-            child: Stack(
+            child: Column(
               children: [
-                MobileScanner(controller: _controller, onDetect: _onDetect),
-                Positioned(
-                  left: 12,
-                  right: 12,
-                  top: 12,
-                  child: _StatusCard(
-                    barcode: _lastBarcode,
-                    ocrSnippet: _lastOcrSnippet,
+                Expanded(
+                  child: _ChoiceCardButton(
+                    icon: Icons.camera_alt,
+                    title: 'Usar câmara',
+                    description:
+                        'Detetar códigos de barras e texto de embalagens em tempo real.',
+                    onPressed: _openCameraMode,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: _ChoiceCardButton(
+                    icon: Icons.keyboard_voice,
+                    title: 'Escrever ou falar',
+                    description:
+                        'Procurar por sintomas, nome do medicamento ou substâncias ativas.',
+                    onPressed: _openTextMode,
                   ),
                 ),
               ],
             ),
           ),
-          Expanded(
-            flex: 6,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
-                        onPressed: _toggleListening,
-                        tooltip: _isListening
-                            ? 'Stop listening'
-                            : 'Speak symptoms or a medication',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.document_scanner),
-                        onPressed: _captureOcrPhoto,
-                        tooltip: 'Capture label for OCR',
-                      ),
-                      Expanded(
-                        child: TextField(
-                          controller: _queryController,
-                          decoration: const InputDecoration(
-                            labelText: 'Type symptoms or medication name',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: _searchFromInput,
-                        child: const Text('Search'),
-                      ),
-                    ],
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Live OCR'),
-                    subtitle: const Text(
-                      'Recognize medication names from the camera preview.',
-                    ),
-                    value: _liveOcrEnabled,
-                    onChanged: (value) {
-                      setState(() => _liveOcrEnabled = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: _matches.isEmpty
-                        ? const _EmptyState()
-                        : ListView.separated(
-                            itemCount: _matches.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (context, index) {
-                              final match = _matches[index];
-                              return _MatchCard(match: match);
-                            },
-                          ),
-                  ),
-                ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCameraView(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          flex: 5,
+          child: Stack(
+            children: [
+              MobileScanner(controller: _controller, onDetect: _onDetect),
+              Positioned(
+                left: 12,
+                right: 12,
+                top: 12,
+                child: _StatusCard(
+                  barcode: _lastBarcode,
+                  ocrSnippet: _lastOcrSnippet,
+                ),
               ),
+            ],
+          ),
+        ),
+        Expanded(
+          flex: 6,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _LabeledActionButton(
+                      icon: Icons.document_scanner,
+                      label: 'OCR',
+                      tooltip: 'Capturar rótulo para OCR',
+                      onPressed: _captureOcrPhoto,
+                    ),
+                  ],
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Live OCR'),
+                  subtitle: const Text(
+                    'Recognize medication names from the camera preview.',
+                  ),
+                  value: _liveOcrEnabled,
+                  onChanged: (value) {
+                    setState(() => _liveOcrEnabled = value);
+                  },
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: _matches.isEmpty
+                      ? const _EmptyState()
+                      : ListView.separated(
+                          itemCount: _matches.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final match = _matches[index];
+                            return _MatchCard(match: match);
+                          },
+                        ),
+                ),
+              ],
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextSearchView(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _queryController,
+                  decoration: const InputDecoration(
+                    labelText: 'Escreva sintomas, medicamento ou substância ativa',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: _searchFromInput,
+                icon: const Icon(Icons.search),
+                label: const Text('Procurar'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _LabeledActionButton(
+                icon: _isListening ? Icons.mic_off : Icons.mic,
+                label: _isListening ? 'Parar' : 'Falar',
+                tooltip: _isListening
+                    ? 'Parar reconhecimento de voz'
+                    : 'Falar sintomas, medicamento ou substância ativa',
+                onPressed: _toggleListening,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: _matches.isEmpty
+                ? const _EmptyState()
+                : ListView.separated(
+                    itemCount: _matches.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final match = _matches[index];
+                      return _MatchCard(match: match);
+                    },
+                  ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _ChoiceCardButton extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  final VoidCallback onPressed;
+
+  const _ChoiceCardButton({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 1,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                child: Icon(icon),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(title, style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 6),
+                    Text(description, style: theme.textTheme.bodyMedium),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LabeledActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _LabeledActionButton({
+    required this.icon,
+    required this.label,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: theme.textTheme.labelSmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
