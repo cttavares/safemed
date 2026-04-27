@@ -4,6 +4,7 @@ import 'package:safemed/screens/alerts_screen.dart';
 import 'package:safemed/screens/medication_explorer_screen.dart';
 import 'package:safemed/screens/profile_list_screen.dart';
 import 'package:safemed/screens/profile_select_screen.dart';
+import 'package:safemed/screens/settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -69,6 +70,17 @@ class HomeScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const AlertsScreen()),
+              );
+            },
+          ),
+          _Card(
+            title: 'Settings',
+            subtitle: 'Notifications, alarm sound and factory reset',
+            icon: Icons.settings,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
               );
             },
           ),

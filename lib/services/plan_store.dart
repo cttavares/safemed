@@ -1,7 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:safemed/services/medication_alarm_scheduler.dart';
 import 'package:safemed/models/prescription_plan.dart';
+import 'package:safemed/services/medication_history_store.dart';
+import 'package:safemed/services/profile_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PlanStore extends ChangeNotifier {
@@ -19,6 +22,8 @@ class PlanStore extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_storageKey);
     if (raw == null || raw.isEmpty) {
+      _plans.clear();
+      notifyListeners();
       return;
     }
     try {
@@ -41,6 +46,11 @@ class PlanStore extends ChangeNotifier {
   Future<void> add(PrescriptionPlan plan) async {
     _plans.add(plan);
     await _persist();
+    await MedicationHistoryStore.instance.syncFromPlans(_plans);
+    await MedicationAlarmScheduler.instance.syncWithPlans(
+      plans: _plans,
+      profiles: ProfileStore.instance.profiles,
+    );
     notifyListeners();
   }
 
@@ -51,12 +61,34 @@ class PlanStore extends ChangeNotifier {
     }
     _plans[index] = plan;
     await _persist();
+    await MedicationHistoryStore.instance.syncFromPlans(_plans);
+    await MedicationAlarmScheduler.instance.syncWithPlans(
+      plans: _plans,
+      profiles: ProfileStore.instance.profiles,
+    );
     notifyListeners();
   }
 
   Future<void> remove(String id) async {
     _plans.removeWhere((p) => p.id == id);
     await _persist();
+    await MedicationHistoryStore.instance.syncFromPlans(_plans);
+    await MedicationAlarmScheduler.instance.syncWithPlans(
+      plans: _plans,
+      profiles: ProfileStore.instance.profiles,
+    );
+    notifyListeners();
+  }
+
+  Future<void> clearAll() async {
+    _plans.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_storageKey);
+    await MedicationHistoryStore.instance.syncFromPlans(_plans);
+    await MedicationAlarmScheduler.instance.syncWithPlans(
+      plans: _plans,
+      profiles: ProfileStore.instance.profiles,
+    );
     notifyListeners();
   }
 
@@ -118,6 +150,11 @@ class PlanStore extends ChangeNotifier {
     ];
     _plans.addAll(demo);
     await _persist();
+    await MedicationHistoryStore.instance.syncFromPlans(_plans);
+    await MedicationAlarmScheduler.instance.syncWithPlans(
+      plans: _plans,
+      profiles: ProfileStore.instance.profiles,
+    );
     notifyListeners();
   }
 }

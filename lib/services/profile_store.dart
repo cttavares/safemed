@@ -27,6 +27,8 @@ class ProfileStore extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_storageKey);
     if (raw == null || raw.isEmpty) {
+      _profiles.clear();
+      notifyListeners();
       return;
     }
     try {
@@ -63,6 +65,13 @@ class ProfileStore extends ChangeNotifier {
   Future<void> remove(String id) async {
     _profiles.removeWhere((p) => p.id == id);
     await _persist();
+    notifyListeners();
+  }
+
+  Future<void> clearAll() async {
+    _profiles.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_storageKey);
     notifyListeners();
   }
 

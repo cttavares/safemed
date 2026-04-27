@@ -1,6 +1,8 @@
 class MedicationHistory {
   final String id;
   final String profileId;
+  final String? planId;
+  final String? planName;
   final String medicationName;
   final String dose;
   final DateTime startDate;
@@ -13,6 +15,8 @@ class MedicationHistory {
   const MedicationHistory({
     required this.id,
     required this.profileId,
+    this.planId,
+    this.planName,
     required this.medicationName,
     required this.dose,
     required this.startDate,
@@ -26,6 +30,8 @@ class MedicationHistory {
   bool get isActive => endDate == null;
 
   MedicationHistory copyWith({
+    String? planId,
+    String? planName,
     String? medicationName,
     String? dose,
     DateTime? startDate,
@@ -38,6 +44,8 @@ class MedicationHistory {
     return MedicationHistory(
       id: id,
       profileId: profileId,
+      planId: planId ?? this.planId,
+      planName: planName ?? this.planName,
       medicationName: medicationName ?? this.medicationName,
       dose: dose ?? this.dose,
       startDate: startDate ?? this.startDate,
@@ -53,6 +61,8 @@ class MedicationHistory {
     return MedicationHistory(
       id: json['id']?.toString() ?? '',
       profileId: json['profileId']?.toString() ?? '',
+      planId: json['planId']?.toString(),
+      planName: json['planName']?.toString(),
       medicationName: json['medicationName']?.toString() ?? '',
       dose: json['dose']?.toString() ?? '',
       startDate:
@@ -72,6 +82,8 @@ class MedicationHistory {
     return {
       'id': id,
       'profileId': profileId,
+      'planId': planId,
+      'planName': planName,
       'medicationName': medicationName,
       'dose': dose,
       'startDate': startDate.toIso8601String(),

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:safemed/models/medication_history.dart';
+import 'package:safemed/models/prescription_plan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MedicationHistoryStore extends ChangeNotifier {
@@ -20,6 +21,44 @@ class MedicationHistoryStore extends ChangeNotifier {
       ..sort((a, b) => b.startDate.compareTo(a.startDate));
   }
 
+  List<MedicationHistory> getForProfileFiltered(
+    String profileId, {
+    String? planId,
+    DateTime? day,
+  }) {
+    final dayOnly = day == null ? null : DateTime(day.year, day.month, day.day);
+    return _history.where((history) {
+      if (history.profileId != profileId) {
+        return false;
+      }
+      if (planId != null && history.planId != planId) {
+        return false;
+      }
+      if (dayOnly != null) {
+        final start = DateTime(
+          history.startDate.year,
+          history.startDate.month,
+          history.startDate.day,
+        );
+        final end = history.endDate == null
+            ? null
+            : DateTime(
+                history.endDate!.year,
+                history.endDate!.month,
+                history.endDate!.day,
+              );
+        if (dayOnly.isBefore(start)) {
+          return false;
+        }
+        if (end != null && dayOnly.isAfter(end)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList()
+      ..sort((a, b) => b.startDate.compareTo(a.startDate));
+  }
+
   List<MedicationHistory> getActiveForProfile(String profileId) {
     return _history
         .where((h) => h.profileId == profileId && h.isActive)
@@ -31,6 +70,8 @@ class MedicationHistoryStore extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_storageKey);
     if (raw == null || raw.isEmpty) {
+      _history.clear();
+      notifyListeners();
       return;
     }
     try {
@@ -52,6 +93,17 @@ class MedicationHistoryStore extends ChangeNotifier {
 
   Future<void> add(MedicationHistory entry) async {
     _history.add(entry);
+    await _persist();
+    notifyListeners();
+  }
+
+  Future<void> syncFromPlans(List<PrescriptionPlan> plans) async {
+    final derivedHistory = _buildHistoryFromPlans(plans);
+
+    _history
+      ..clear()
+      ..addAll(derivedHistory);
+
     await _persist();
     notifyListeners();
   }
@@ -78,9 +130,50 @@ class MedicationHistoryStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> clearAll() async {
+    _history.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_storageKey);
+    notifyListeners();
+  }
+
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
     final payload = _history.map((h) => h.toJson()).toList();
     await prefs.setString(_storageKey, jsonEncode(payload));
+  }
+
+  List<MedicationHistory> _buildHistoryFromPlans(List<PrescriptionPlan> plans) {
+    final derived = <MedicationHistory>[];
+
+    for (final plan in plans) {
+      for (final medication in plan.medications) {
+        final notes = <String>[];
+        if (medication.notes.trim().isNotEmpty) {
+          notes.add(medication.notes.trim());
+        }
+        if (medication.times.isNotEmpty) {
+          notes.add('Times: ${medication.times.join(', ')}');
+        }
+
+        derived.add(
+          MedicationHistory(
+            id: 'history-${plan.id}-${medication.id}',
+            profileId: plan.profileId,
+            planId: plan.id,
+            planName: plan.name,
+            medicationName: medication.name,
+            dose: medication.dose,
+            startDate: plan.startDate,
+            endDate: plan.endDate,
+            reasonForTaking: plan.name,
+            reasonForStopping: plan.isActive ? null : 'Plan finished',
+            notes: notes.join(' | '),
+          ),
+        );
+      }
+    }
+
+    return derived;
   }
 }

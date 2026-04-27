@@ -59,6 +59,7 @@ See **[QUICK_START.md](QUICK_START.md)** for detailed testing instructions.
 - ✅ **Alerts** - Pending medication notifications
 - ✅ **Risk Analysis** - Basic contraindication checking
 - ✅ **Medication Explorer** - Search by symptoms, scan barcodes/labels
+- ✅ **Medication History** - Per-profile history with plan and date filters, plus medication totals
 
 ### Recent Updates (March 6, 2026)
 - 🔧 **Fixed:** Manual prescription entry now parses text (not just names)

@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:safemed/models/profile.dart';
 import 'package:safemed/screens/medication_history_screen.dart';
@@ -62,6 +61,16 @@ class ProfileDetailScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _SectionTitle('Alarm Tone'),
+              const SizedBox(height: 8),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.notifications_active),
+                  title: Text(_toneLabel(profile)),
+                  subtitle: Text(_toneSubtitle(profile)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -285,6 +294,34 @@ class ProfileDetailScreen extends StatelessWidget {
       }
     }
   }
+}
+
+String _toneLabel(Profile profile) {
+  switch (profile.alarmTone) {
+    case 'alarm':
+      return 'System alarm style';
+    case 'notification':
+      return 'System notification style';
+    case 'custom':
+      return 'Imported sound';
+    case 'ios_pulse':
+      return 'iOS Pulse';
+    case 'ios_beacon':
+      return 'iOS Beacon';
+    case 'default':
+    default:
+      return 'App default';
+  }
+}
+
+String _toneSubtitle(Profile profile) {
+  if (profile.alarmTone == 'custom' && profile.customAlarmUri != null) {
+    return 'Custom file: ${Uri.parse(profile.customAlarmUri!).pathSegments.isEmpty ? profile.customAlarmUri : Uri.parse(profile.customAlarmUri!).pathSegments.last}';
+  }
+  if (profile.alarmTone == 'default') {
+    return 'Uses the global app alarm settings';
+  }
+  return 'Used when this profile receives a medication reminder';
 }
 
 class _ProfileHeader extends StatelessWidget {

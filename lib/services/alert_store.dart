@@ -41,6 +41,14 @@ class AlertStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> clearAll() async {
+    _dismissed.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_storageKey);
+    await prefs.remove(_dateKey);
+    notifyListeners();
+  }
+
   bool isDismissed(String id) => _dismissed.contains(id);
 
   Future<void> _persist() async {

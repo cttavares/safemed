@@ -70,6 +70,8 @@ class Profile {
   final List<String> allergies;
   final List<String> medicalRestrictions;
   final ProfileType category;
+  final String alarmTone;
+  final String? customAlarmUri;
 
   const Profile({
     required this.id,
@@ -86,6 +88,8 @@ class Profile {
     this.allergies = const [],
     this.medicalRestrictions = const [],
     ProfileType? category,
+    this.alarmTone = 'default',
+    this.customAlarmUri,
   }) : category = category ?? ProfileType.adult;
 
   Profile copyWith({
@@ -102,6 +106,9 @@ class Profile {
     List<String>? allergies,
     List<String>? medicalRestrictions,
     ProfileType? category,
+    String? alarmTone,
+    String? customAlarmUri,
+    bool clearCustomAlarmUri = false,
   }) {
     return Profile(
       id: id,
@@ -118,6 +125,10 @@ class Profile {
       allergies: allergies ?? this.allergies,
       medicalRestrictions: medicalRestrictions ?? this.medicalRestrictions,
       category: category ?? this.category,
+      alarmTone: alarmTone ?? this.alarmTone,
+      customAlarmUri: clearCustomAlarmUri
+          ? null
+          : (customAlarmUri ?? this.customAlarmUri),
     );
   }
 
@@ -153,6 +164,8 @@ class Profile {
       category: json['category'] != null
           ? ProfileType.fromString(json['category'].toString())
           : ProfileType.fromAge((json['age'] as num?)?.toInt() ?? 0),
+      alarmTone: json['alarmTone']?.toString() ?? 'default',
+      customAlarmUri: json['customAlarmUri']?.toString(),
     );
   }
 
@@ -172,6 +185,8 @@ class Profile {
       'allergies': allergies,
       'medicalRestrictions': medicalRestrictions,
       'category': category.name,
+      'alarmTone': alarmTone,
+      'customAlarmUri': customAlarmUri,
     };
   }
 }

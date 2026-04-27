@@ -1,9 +1,14 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:image_picker/image_picker.dart';
 import 'package:safemed/data/substance_risk_tables.dart';
 import 'package:safemed/models/profile.dart';
+import 'package:safemed/services/medication_alarm_scheduler.dart';
+import 'package:safemed/services/plan_store.dart';
 import 'package:safemed/services/profile_store.dart';
 
 class ProfileFormScreen extends StatefulWidget {
@@ -31,6 +36,8 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   List<String> _allergies = [];
   List<String> _medicalRestrictions = [];
   ProfileType _category = ProfileType.adult;
+  String _alarmTone = 'default';
+  String? _customAlarmUri;
 
   @override
   void initState() {
@@ -50,6 +57,8 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
       _allergies = List.from(profile.allergies);
       _medicalRestrictions = List.from(profile.medicalRestrictions);
       _category = profile.category;
+      _alarmTone = profile.alarmTone;
+      _customAlarmUri = profile.customAlarmUri;
     }
   }
 
@@ -123,7 +132,7 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<BiologicalSex>(
-            value: _sex,
+            initialValue: _sex,
             decoration: const InputDecoration(
               labelText: 'Sexo',
               border: OutlineInputBorder(),
@@ -158,7 +167,7 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
           ],
           const SizedBox(height: 12),
           DropdownButtonFormField<ProfileType>(
-            value: _category,
+            initialValue: _category,
             decoration: const InputDecoration(
               labelText: 'Profile Category',
               border: OutlineInputBorder(),
@@ -177,6 +186,69 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
               }
             },
           ),
+          const SizedBox(height: 12),
+          const Text(
+            'Alarm tone for this profile',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: _alarmTone,
+            decoration: const InputDecoration(
+              labelText: 'Tone',
+              border: OutlineInputBorder(),
+            ),
+            items: _toneOptions()
+                .map(
+                  (option) => DropdownMenuItem(
+                    value: option.value,
+                    child: Text(option.label),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) async {
+              if (value == null) {
+                return;
+              }
+              setState(() {
+                _alarmTone = value;
+                if (_alarmTone != 'custom') {
+                  _customAlarmUri = null;
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 8),
+          if (_alarmTone == 'custom' && defaultTargetPlatform == TargetPlatform.android) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.music_note),
+              title: Text(
+                _customAlarmUri == null
+                    ? 'No sound selected'
+                    : p.basename(Uri.parse(_customAlarmUri!).path),
+              ),
+              subtitle: const Text('Android custom ringtone from your phone'),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickCustomAlarmSound,
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Import sound'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                TextButton(
+                  onPressed: _customAlarmUri == null
+                      ? null
+                      : () => setState(() => _customAlarmUri = null),
+                  child: const Text('Clear'),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           const Text(
             'Conditions',
@@ -340,6 +412,8 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         allergies: _allergies,
         medicalRestrictions: _medicalRestrictions,
         category: _category,
+        alarmTone: _alarmTone,
+        customAlarmUri: _customAlarmUri,
       );
       await store.add(newProfile);
     } else {
@@ -357,9 +431,16 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         allergies: _allergies,
         medicalRestrictions: _medicalRestrictions,
         category: _category,
+        alarmTone: _alarmTone,
+        customAlarmUri: _customAlarmUri,
       );
       await store.update(updated);
     }
+
+    await MedicationAlarmScheduler.instance.syncWithPlans(
+      plans: PlanStore.instance.plans,
+      profiles: ProfileStore.instance.profiles,
+    );
 
     if (!mounted) {
       return;
@@ -412,6 +493,41 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
     setState(() => _medicalRestrictions.remove(restriction));
   }
 
+  Future<void> _pickCustomAlarmSound() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      type: FileType.custom,
+      allowedExtensions: const ['mp3', 'wav', 'ogg', 'm4a', 'aac'],
+    );
+
+    final path = result?.files.single.path;
+    if (path == null || path.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _customAlarmUri = Uri.file(path).toString();
+      _alarmTone = 'custom';
+    });
+  }
+
+  List<_ToneOption> _toneOptions() {
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return const [
+        _ToneOption(value: 'default', label: 'Use app default'),
+        _ToneOption(value: 'alarm', label: 'System alarm style'),
+        _ToneOption(value: 'notification', label: 'System notification style'),
+        _ToneOption(value: 'custom', label: 'Imported sound'),
+      ];
+    }
+
+    return const [
+      _ToneOption(value: 'default', label: 'Use app default'),
+      _ToneOption(value: 'ios_pulse', label: 'iOS Pulse'),
+      _ToneOption(value: 'ios_beacon', label: 'iOS Beacon'),
+    ];
+  }
+
   ImageProvider? _photoProvider() {
     final path = _photoPath;
     if (path == null || path.isEmpty) {
@@ -423,6 +539,13 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
     }
     return FileImage(file);
   }
+}
+
+class _ToneOption {
+  final String value;
+  final String label;
+
+  const _ToneOption({required this.value, required this.label});
 }
 
 class _RestrictionPickerDialog extends StatefulWidget {

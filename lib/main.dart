@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:safemed/services/alert_store.dart';
+import 'package:safemed/services/app_settings_store.dart';
+import 'package:safemed/services/medication_alarm_scheduler.dart';
 import 'package:safemed/services/medication_history_store.dart';
 import 'package:safemed/services/plan_store.dart';
 import 'package:safemed/services/profile_store.dart';
@@ -13,10 +15,16 @@ Future<void> main() async {
     PlanStore.instance.load(),
     AlertStore.instance.load(),
     MedicationHistoryStore.instance.load(),
+    AppSettingsStore.instance.load(),
   ]);
+  await MedicationHistoryStore.instance.syncFromPlans(PlanStore.instance.plans);
   if (kDebugMode) {
     await _seedDemoData();
   }
+  await MedicationAlarmScheduler.instance.syncWithPlans(
+    plans: PlanStore.instance.plans,
+    profiles: ProfileStore.instance.profiles,
+  );
   runApp(const SafeMedApp());
 }
 
