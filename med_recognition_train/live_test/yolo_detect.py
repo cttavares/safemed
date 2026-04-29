@@ -10,6 +10,9 @@ from ultralytics import YOLO
 
 # Define and parse user input arguments
 
+CONF = 0.5 # Confidence threshold for displaying detected objects
+IMGSSZ_VALUE = 640 # Inference image size. Must be a multiple of 32. Can be set to None to use source image size, but this will reduce FPS.
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', help='Path to YOLO model file (example: "runs/detect/train/weights/best.pt")',
                     required=True)
@@ -163,7 +166,7 @@ while True:
         frame = cv2.resize(frame,(resW,resH))
 
     # Run inference on frame
-    results = model(frame, verbose=False)
+    results = model(frame, verbose=False, imgsz=IMGSSZ_VALUE)
 
     # Extract results
     detections = results[0].boxes
@@ -188,7 +191,7 @@ while True:
         conf = detections[i].conf.item()
 
         # Draw box if confidence threshold is high enough
-        if conf > 0.5:
+        if conf > CONF:
 
             color = bbox_colors[classidx % 10]
             cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), color, 2)

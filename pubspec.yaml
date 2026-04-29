@@ -30,9 +30,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  camera: ^0.11.4
   mobile_scanner: ^7.1.4
   image_picker: ^1.0.8
   google_mlkit_text_recognition: ^0.15.0
+  flutter_vision: ^2.0.0
   shared_preferences: ^2.3.2
   speech_to_text: ^7.0.0
   flutter_ringtone_player: ^4.0.0+4
@@ -68,6 +70,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/yolo11s/tflite/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

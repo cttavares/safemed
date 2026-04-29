@@ -1,0 +1,43 @@
+description: Ultralytics YOLO11s model trained on /content/custom_data/data.yaml
+author: Ultralytics
+date: '2026-04-29T20:50:03.629368'
+version: 8.4.37
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 640
+- 640
+names:
+  0: '106'
+  1: '108'
+  2: '153'
+  3: '174'
+  4: '234'
+  5: '310'
+  6: '345'
+  7: '346'
+  8: '352'
+  9: '355'
+  10: '371'
+  11: '393'
+  12: '400'
+  13: '401'
+  14: '41'
+  15: '414'
+  16: '45'
+  17: '50'
+  18: '67'
+  19: '79'
+  20: '83'
+  21: '92'
+args:
+  batch: 1
+  fraction: 1.0
+  half: false
+  int8: true
+  nms: false
+channels: 3
+end2end: false

@@ -1,4 +1,4 @@
-## 📦 Roboflow 
+## 📦 Roboflow and GoogleCollab
 
 #### Safemed med recognition 
 
@@ -8,6 +8,8 @@ Modelo base YOLOv11s pré-treinado, leve e eficiente para dispositivos móveis.
 O modelo foca-se na **deteção de objetos** (localização da caixa). A extração de dados textuais (Nome/Dosagem) e leitura de códigos de barras é delegada para motores de OCR e Google ML Kit, que operam apenas dentro das *Bounding Boxes* geradas por este modelo.
 
 <https://app.roboflow.com/luss-workspace-u3jzw/safemed_med_recognition-zcroy>
+
+<https://colab.research.google.com/github/EdjeElectronics/Train-and-Deploy-YOLO-Models/blob/main/Train_YOLO_Models.ipynb#scrollTo=8bbpob1gTPlo>
 
 ## 📊 Estatísticas do Dataset
 * **Total de Imagens:** 30 imagens (90 imagens apos augmentação)
