@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:safemed/screens/administration_screen.dart';
 import 'package:safemed/screens/alerts_screen.dart';
-import 'package:safemed/screens/medication_explorer_screen.dart';
+import 'package:safemed/screens/medication_explorer/medication_explorer_screen.dart';
 import 'package:safemed/screens/profile_list_screen.dart';
 import 'package:safemed/screens/profile_select_screen.dart';
 import 'package:safemed/screens/settings_screen.dart';

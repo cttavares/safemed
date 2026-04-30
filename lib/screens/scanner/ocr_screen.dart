@@ -47,21 +47,21 @@ class _OcrScreenState extends State<OcrScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('OCR Prescription')),
+      appBar: AppBar(title: const Text('Usar OCR para ler Códigos de Barras')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             FilledButton(
               onPressed: _busy ? null : _takePhotoAndOcr,
-              child: const Text('Take photo and read text'),
+              child: const Text('Tirar Foto e Ler Texto'),
             ),
             const SizedBox(height: 16),
             if (_busy) const LinearProgressIndicator(),
             const SizedBox(height: 16),
             Expanded(
               child: SingleChildScrollView(
-                child: SelectableText(_text.isEmpty ? 'No text yet.' : _text),
+                child: SelectableText(_text.isEmpty ? 'Sem texto para exibir.' : _text),
               ),
             ),
           ],

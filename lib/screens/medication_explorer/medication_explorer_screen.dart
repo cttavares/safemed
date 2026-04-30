@@ -1,18 +1,13 @@
 import 'dart:async';
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
-import '../models/medication_match.dart';
-import '../services/medication_explorer_service.dart';
-import '../services/ocr_service.dart';
-import 'scanner/bounding_box_painter.dart';
-import 'scanner/flutter_vision_isolate.dart';
-import 'scanner/ocr_screen.dart';
+import '../../models/medication_match.dart';
+import 'medication_explorer_camera_controller.dart';
+import 'medication_match_engine.dart';
+import '../scanner/bounding_box_painter.dart';
+import '../scanner/ocr_screen.dart';
 
 enum _ExplorerMode { camera, manual }
 
@@ -30,322 +25,63 @@ class MedicationExplorerScreen extends StatefulWidget {
 }
 
 class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
-  final OcrService _ocr = OcrService();
-  final MedicationExplorerService _service = MedicationExplorerService();
+  late final MedicationExplorerCameraController _camera;
+  late final MedicationExplorerMatchEngine _matches;
   final SpeechToText _speech = SpeechToText();
   final TextEditingController _queryController = TextEditingController();
 
-  late final Directory _ocrTempDir;
-  late final File _ocrTempFile;
-  late final Directory _visionTempDir;
-  late final File _visionModelFile;
-  late final File _visionLabelsFile;
-
-  CameraController? _cameraController;
-  List<CameraDescription> _availableCameras = const [];
-  VisionDetectionWorker? _visionWorker;
-  StreamSubscription<VisionFrameResult>? _visionSubscription;
-
-  DateTime _lastOcrAt = DateTime.fromMillisecondsSinceEpoch(0);
-  bool _busyOcr = false;
-  bool _cameraEnabled = true;
-  bool _liveVisionEnabled = true;
   bool _isListening = false;
-  bool _cameraReady = false;
-  bool _visionReady = false;
-  bool _visionAssetsReady = false;
-  bool _initializingCamera = false;
-  bool _initializingVision = false;
-  bool _torchEnabled = false;
-  bool _visionSupported = true;
-  String _visionStatus = 'A carregar modelo de visão...';
   String? _speechLocaleId;
-  Size _frameSize = const Size(1, 1);
-  int _frameId = 0;
-  bool _processingFrame = false;
-  String? _cameraError;
 
   _ExplorerMode _mode = _ExplorerMode.camera;
-
-  String _lastOcrSnippet = '';
-  String _lastDetectedTags = '';
-
-  List<MedicationMatch> _visionMatches = const [];
-  List<MedicationMatch> _ocrMatches = const [];
-  List<MedicationMatch> _manualMatches = const [];
-  List<MedicationMatch> _matches = const [];
-  List<Map<String, dynamic>> _detections = const [];
 
   @override
   void initState() {
     super.initState();
-    _ocrTempDir = Directory.systemTemp.createTempSync('safemed_ocr');
-    _ocrTempFile = File('${_ocrTempDir.path}/frame.jpg');
-    _visionTempDir = Directory.systemTemp.createTempSync('safemed_yolo');
-    _visionModelFile = File('${_visionTempDir.path}/med_recog_best_int8.tflite');
-    _visionLabelsFile = File('${_visionTempDir.path}/labels.txt');
-    _bootstrapAsync();
+    _matches = MedicationExplorerMatchEngine();
+    _camera = MedicationExplorerCameraController(
+      onVisionTagsChanged: _matches.updateVisionTags,
+    );
+    _camera.addListener(_syncView);
+    _matches.addListener(_syncView);
+    unawaited(_camera.bootstrap());
   }
 
-  Future<void> _bootstrapAsync() async {
-    await _prepareVisionAssets();
-    if (!mounted) return;
-    await _initializeCamera();
-    if (!mounted) return;
-    unawaited(_initializeVisionWorker());
+  void _syncView() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _selectCameraMode() async {
     if (!mounted) return;
     setState(() {
       _mode = _ExplorerMode.camera;
-      _cameraEnabled = true;
       _isListening = false;
     });
-    await _maybeStartCameraStream();
+    await _camera.setCameraEnabled(true);
   }
 
   Future<void> _selectManualMode() async {
     if (!mounted) return;
     setState(() {
       _mode = _ExplorerMode.manual;
-      _cameraEnabled = false;
       _isListening = false;
     });
-    await _stopCameraStream();
+    await _camera.setCameraEnabled(false);
     try {
       await _speech.stop();
     } catch (_) {}
   }
 
-  Future<void> _prepareVisionAssets() async {
-    try {
-      final modelBytes = await rootBundle.load(
-        'assets/yolo11s/tflite/med_recog_best_int8.tflite',
-      );
-      final labels = await rootBundle.loadString('assets/yolo11s/tflite/labels.txt');
-      if (modelBytes.lengthInBytes == 0 || labels.trim().isEmpty) {
-        throw StateError('Model asset data is empty.');
-      }
-      await _visionModelFile.writeAsBytes(
-        modelBytes.buffer.asUint8List(),
-        flush: true,
-      );
-      await _visionLabelsFile.writeAsString(labels, flush: true);
-      if (mounted) {
-        setState(() => _visionAssetsReady = true);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _visionAssetsReady = false;
-          _visionSupported = true;
-          _visionStatus = 'YOLO indisponível: $e';
-        });
-      }
-    }
-  }
-
-  Future<void> _initializeVisionWorker() async {
-    if (!_visionAssetsReady) return;
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      if (mounted) {
-        setState(() {
-          _visionSupported = false;
-          _visionStatus = 'Visão computacional disponível apenas no Android.';
-        });
-      }
-      return;
-    }
-
-    _initializingVision = true;
-    if (mounted) {
-      setState(() => _visionStatus = 'A iniciar inferência YOLO...');
-    }
-
-    try {
-      final worker = await VisionDetectionWorker.start(
-        rootToken: ServicesBinding.rootIsolateToken!,
-        modelPath: _visionModelFile.path,
-        labelsPath: _visionLabelsFile.path,
-        modelVersion: 'yolov11',
-        isAsset: false,
-        numThreads: 2,
-        useGpu: true,
-        quantization: true,
-        rotation: 90,
-      );
-      _visionWorker = worker;
-      _visionSubscription = worker.results.listen(_handleVisionResult);
-      if (mounted) {
-        setState(() {
-          _visionReady = true;
-          _visionStatus = 'Modelo pronto';
-        });
-      }
-      await _maybeStartCameraStream();
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _visionReady = false;
-          _visionSupported = true;
-          _visionStatus = 'YOLO desativado: $e';
-        });
-      }
-    } finally {
-      _initializingVision = false;
-    }
-  }
-
-  Future<void> _initializeCamera({CameraDescription? preferredCamera}) async {
-    _initializingCamera = true;
-    try {
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        throw StateError('Nenhuma câmara disponível.');
-      }
-      _availableCameras = cameras;
-      final selectedCamera = preferredCamera ??
-          cameras.firstWhere(
-            (camera) => camera.lensDirection == CameraLensDirection.back,
-            orElse: () => cameras.first,
-          );
-
-      final controller = CameraController(
-        selectedCamera,
-        ResolutionPreset.medium,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.yuv420,
-      );
-      await controller.initialize();
-
-      final oldController = _cameraController;
-      _cameraController = controller;
-      if (mounted) {
-        setState(() {
-          _cameraReady = true;
-          _cameraError = null;
-        });
-      }
-      await oldController?.dispose();
-      await _maybeStartCameraStream();
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _cameraReady = false;
-          _cameraError = e.toString();
-        });
-      }
-    } finally {
-      _initializingCamera = false;
-    }
-  }
-
-  Future<void> _maybeStartCameraStream() async {
-    if (!_cameraEnabled || !_liveVisionEnabled || !_visionReady || !_cameraReady) {
-      return;
-    }
-    final controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized) return;
-    if (controller.value.isStreamingImages) return;
-
-    try {
-      await controller.startImageStream(_processCameraImage);
-    } catch (_) {}
-  }
-
-  Future<void> _stopCameraStream() async {
-    final controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized) return;
-    if (!controller.value.isStreamingImages) return;
-    try {
-      await controller.stopImageStream();
-    } catch (_) {}
-  }
-
-  void _processCameraImage(CameraImage image) {
-    if (!_cameraEnabled || !_liveVisionEnabled || !_visionReady) return;
-    if (_processingFrame || _visionWorker == null) return;
-
-    _processingFrame = true;
-    _frameId += 1;
-    _frameSize = Size(image.width.toDouble(), image.height.toDouble());
-
-    _visionWorker!.sendFrame(
-      frameId: _frameId,
-      bytesList: image.planes.map((plane) => plane.bytes).toList(growable: false),
-      imageHeight: image.height,
-      imageWidth: image.width,
-      iouThreshold: 0.4,
-      confThreshold: 0.2,
-      classThreshold: 0.2,
-    );
-  }
-
-  void _handleVisionResult(VisionFrameResult result) {
-    if (!mounted) return;
-
-    final detections = result.detections;
-    final tags = detections
-        .map((detection) => (detection['tag'] ?? 'unknown').toString())
-        .where((tag) => tag.trim().isNotEmpty)
-        .toSet()
-        .toList();
-
-    final visionMatches = <MedicationMatch>[];
-    for (final tag in tags) {
-      visionMatches.addAll(_service.searchText(tag, source: 'vision'));
-    }
-
-    setState(() {
-      _detections = detections;
-      _lastDetectedTags = tags.isEmpty ? '' : tags.join(', ');
-      _visionMatches = visionMatches;
-      _processingFrame = false;
-    });
-
-    _recomputeMatches();
-  }
-
-  void _handleOcrText(String text) {
-    final matches = _service.searchText(text, source: 'ocr');
-    final snippet = text.replaceAll(RegExp(r'\s+'), ' ');
-    setState(() {
-      _lastOcrSnippet = snippet.length > 120 ? '${snippet.substring(0, 120)}...' : snippet;
-      _ocrMatches = matches;
-    });
-    _recomputeMatches();
-  }
-
   void _searchFromInput() {
     final text = _queryController.text.trim();
-    final matches = text.isEmpty
-        ? const <MedicationMatch>[]
-        : _service.searchText(text, source: 'manual');
-    setState(() => _manualMatches = matches);
-    _recomputeMatches();
+    _matches.searchManual(text);
   }
 
   void _clearSearch() {
     _queryController.clear();
-    setState(() => _manualMatches = const []);
-    _recomputeMatches();
-  }
-
-  void _recomputeMatches() {
-    final map = <String, MedicationMatch>{};
-    for (final match in _manualMatches) {
-      map.putIfAbsent(match.name, () => match);
-    }
-    for (final match in _ocrMatches) {
-      map.putIfAbsent(match.name, () => match);
-    }
-    for (final match in _visionMatches) {
-      map.putIfAbsent(match.name, () => match);
-    }
-    final list = map.values.toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
-    setState(() => _matches = list);
+    _matches.clearManualSearch();
   }
 
   Future<void> _captureOcrPhoto() async {
@@ -355,7 +91,7 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
     );
 
     if (recognizedText == null || recognizedText.trim().isEmpty) return;
-    _handleOcrText(recognizedText);
+    _matches.updateOcrText(recognizedText);
   }
 
   Future<String?> _resolveSpeechLocaleId() async {
@@ -423,84 +159,38 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
   }
 
   Future<void> _toggleTorch() async {
-    final controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized) return;
-    try {
-      final nextMode = _torchEnabled ? FlashMode.off : FlashMode.torch;
-      await controller.setFlashMode(nextMode);
-      if (mounted) {
-        setState(() => _torchEnabled = !_torchEnabled);
-      }
-    } catch (_) {}
+    await _camera.toggleTorch();
   }
 
   Future<void> _switchCamera() async {
-    if (_availableCameras.length < 2) return;
-    final controller = _cameraController;
-    final currentName = controller?.description.name;
-    final currentIndex = _availableCameras.indexWhere(
-      (camera) => camera.name == currentName,
-    );
-    final nextIndex = currentIndex < 0
-        ? 0
-        : (currentIndex + 1) % _availableCameras.length;
-    await _stopCameraStream();
-    await controller?.dispose();
-    await _initializeCamera(preferredCamera: _availableCameras[nextIndex]);
+    await _camera.switchCamera();
   }
 
   Future<void> _toggleCameraEnabled() async {
-    final nextValue = !_cameraEnabled;
-    setState(() {
-      _cameraEnabled = nextValue;
-      if (!nextValue) {
-        _isListening = false;
-      }
-    });
-    if (nextValue) {
-      await _maybeStartCameraStream();
-    } else {
-      await _stopCameraStream();
+    final nextValue = !_camera.cameraEnabled;
+    if (!nextValue) {
+      setState(() => _isListening = false);
       await _speech.stop();
     }
+    await _camera.setCameraEnabled(nextValue);
   }
 
   void _toggleLiveVision(bool value) {
-    setState(() => _liveVisionEnabled = value);
-    if (!value) {
-      _stopCameraStream();
-    } else {
-      _maybeStartCameraStream();
-    }
+    unawaited(_camera.setLiveVisionEnabled(value));
   }
 
   void _enableCamera() {
-    _toggleCameraEnabled();
+    unawaited(_camera.setCameraEnabled(true));
   }
 
   @override
   void dispose() {
+    _camera.removeListener(_syncView);
+    _matches.removeListener(_syncView);
     _queryController.dispose();
     _speech.stop();
-    _visionSubscription?.cancel();
-    _visionWorker?.dispose();
-    _cameraController?.dispose();
-    _ocr.dispose();
-    try {
-      _ocrTempFile.deleteSync();
-    } catch (_) {}
-    try {
-      _visionModelFile.deleteSync();
-    } catch (_) {}
-    try {
-      _visionLabelsFile.deleteSync();
-    } catch (_) {}
-    try {
-      _ocrTempDir.deleteSync(recursive: true);
-    } catch (_) {}
-    try {
-      _visionTempDir.deleteSync(recursive: true);
-    } catch (_) {}
+    unawaited(_camera.disposeResources());
+    _matches.dispose();
     super.dispose();
   }
 
@@ -512,9 +202,13 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
         title: const Text('Medication Explorer'),
         actions: [
           IconButton(
-            icon: Icon(_cameraEnabled ? Icons.videocam : Icons.videocam_off),
+            icon: Icon(
+              _camera.cameraEnabled ? Icons.videocam : Icons.videocam_off,
+            ),
             onPressed: _toggleCameraEnabled,
-            tooltip: _cameraEnabled ? 'Desativar câmara' : 'Ativar câmara',
+            tooltip: _camera.cameraEnabled
+                ? 'Desativar câmara'
+                : 'Ativar câmara',
           ),
           IconButton(
             icon: const Icon(Icons.cameraswitch),
@@ -522,7 +216,7 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
             tooltip: 'Trocar câmara',
           ),
           IconButton(
-            icon: Icon(_torchEnabled ? Icons.flash_on : Icons.flash_off),
+            icon: Icon(_camera.torchEnabled ? Icons.flash_on : Icons.flash_off),
             onPressed: _toggleTorch,
             tooltip: 'Flash',
           ),
@@ -544,7 +238,7 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               _ExplorerHeroCard(
-                cameraEnabled: _cameraEnabled,
+                cameraEnabled: _camera.cameraEnabled,
                 onToggleCamera: _selectCameraMode,
                 onSearchWithoutCamera: _selectManualMode,
               ),
@@ -561,20 +255,20 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
                 ),
                 const SizedBox(height: 12),
                 _CameraPanel(
-                  cameraController: _cameraController,
-                  cameraReady: _cameraReady,
-                  cameraEnabled: _cameraEnabled,
-                  visionReady: _visionReady,
-                  visionSupported: _visionSupported,
-                  visionStatus: _visionStatus,
-                  liveVisionEnabled: _liveVisionEnabled,
+                  cameraController: _camera.cameraController,
+                  cameraReady: _camera.cameraReady,
+                  cameraEnabled: _camera.cameraEnabled,
+                  visionReady: _camera.visionReady,
+                  visionSupported: _camera.visionSupported,
+                  visionStatus: _camera.visionStatus,
+                  liveVisionEnabled: _camera.liveVisionEnabled,
                   onToggleLiveVision: _toggleLiveVision,
                   onCaptureOcrPhoto: _captureOcrPhoto,
                   onEnableCamera: _enableCamera,
-                  onRefreshStream: _maybeStartCameraStream,
-                  detections: _detections,
-                  frameSize: _frameSize,
-                  lastDetectedTags: _lastDetectedTags,
+                  onRefreshStream: _camera.refreshStream,
+                  detections: _camera.detections,
+                  frameSize: _camera.frameSize,
+                  lastDetectedTags: _camera.lastDetectedTags,
                   accent: _cameraAccent,
                   accentDark: _cameraAccentDark,
                 ),
@@ -620,10 +314,10 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
                 icon: Icons.checklist_outlined,
               ),
               const SizedBox(height: 12),
-              if (_matches.isEmpty)
+              if (_matches.matches.isEmpty)
                 const _EmptyState()
               else
-                ..._matches.map(
+                ..._matches.matches.map(
                   (match) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _MatchCard(match: match),
@@ -748,19 +442,20 @@ class _ExplorerHeroCard extends StatelessWidget {
                 Expanded(
                   child: FilledButton.tonalIcon(
                     onPressed: onToggleCamera,
-                    style: 
-                      cameraEnabled
-                          ? ElevatedButton.styleFrom(
-                              backgroundColor: _cameraAccent,
-                              foregroundColor: _cameraAccentDark,
-                            )
-                          : ElevatedButton.styleFrom(
-                              backgroundColor: _cameraAccent.withOpacity(0.50),
-                              foregroundColor: _cameraAccentDark.withOpacity(0.50),
+                    style: cameraEnabled
+                        ? ElevatedButton.styleFrom(
+                            backgroundColor: _cameraAccent,
+                            foregroundColor: _cameraAccentDark,
+                          )
+                        : ElevatedButton.styleFrom(
+                            backgroundColor: _cameraAccent.withOpacity(0.50),
+                            foregroundColor: _cameraAccentDark.withOpacity(
+                              0.50,
+                            ),
+                          ),
+                    icon: Icon(
+                      cameraEnabled ? Icons.videocam : Icons.videocam_off,
                     ),
-                    icon: Icon(cameraEnabled
-                          ? Icons.videocam
-                          : Icons.videocam_off),
                     label: Text('Pesquisa inteligente com câmara'),
                   ),
                 ),
@@ -768,17 +463,19 @@ class _ExplorerHeroCard extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: onSearchWithoutCamera,
-                    style: 
-                      cameraEnabled
-                          ? OutlinedButton.styleFrom(
-                              foregroundColor: _searchAccentDark.withOpacity(0.50),
-                              side: BorderSide(color: _searchAccent.withOpacity(0.50)),
-
-                            )
-                          : OutlinedButton.styleFrom(
-                              foregroundColor: _searchAccentDark,
-                              side: BorderSide(color: _searchAccent),
-                    ),
+                    style: cameraEnabled
+                        ? OutlinedButton.styleFrom(
+                            foregroundColor: _searchAccentDark.withOpacity(
+                              0.50,
+                            ),
+                            side: BorderSide(
+                              color: _searchAccent.withOpacity(0.50),
+                            ),
+                          )
+                        : OutlinedButton.styleFrom(
+                            foregroundColor: _searchAccentDark,
+                            side: BorderSide(color: _searchAccent),
+                          ),
                     icon: const Icon(Icons.search),
                     label: const Text('Pesquisa manual'),
                   ),
@@ -832,7 +529,8 @@ class _CameraPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final canShowPreview = cameraEnabled && cameraReady && cameraController != null;
+    final canShowPreview =
+        cameraEnabled && cameraReady && cameraController != null;
     return Card(
       elevation: 0,
       color: accent.withOpacity(0.34),
@@ -898,8 +596,8 @@ class _CameraPanel extends StatelessWidget {
                               Text(
                                 cameraEnabled
                                     ? (cameraReady
-                                        ? 'Câmara pronta'
-                                        : 'A preparar a câmara...')
+                                          ? 'Câmara pronta'
+                                          : 'A preparar a câmara...')
                                     : 'Câmara desativada',
                                 style: theme.textTheme.titleMedium,
                               ),
@@ -908,8 +606,8 @@ class _CameraPanel extends StatelessWidget {
                                 !visionSupported
                                     ? visionStatus
                                     : cameraEnabled
-                                        ? 'A visualização fica aqui e os resultados aparecem sobrepostos.'
-                                        : 'Pode continuar a pesquisar por texto ou voz.',
+                                    ? 'A visualização fica aqui e os resultados aparecem sobrepostos.'
+                                    : 'Pode continuar a pesquisar por texto ou voz.',
                                 textAlign: TextAlign.center,
                                 style: theme.textTheme.bodyMedium,
                               ),
@@ -917,7 +615,9 @@ class _CameraPanel extends StatelessWidget {
                               FilledButton.tonal(
                                 onPressed: onEnableCamera,
                                 child: Text(
-                                  cameraEnabled ? 'Suspender câmara' : 'Ativar câmara',
+                                  cameraEnabled
+                                      ? 'Suspender câmara'
+                                      : 'Ativar câmara',
                                 ),
                               ),
                             ],
@@ -963,12 +663,18 @@ class _CameraPanel extends StatelessWidget {
                       selected: liveVisionEnabled,
                       onSelected: onToggleLiveVision,
                       avatar: Icon(
-                        liveVisionEnabled ? Icons.visibility : Icons.visibility_off,
+                        liveVisionEnabled
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                         size: 18,
-                        color: liveVisionEnabled ? accentDark : theme.colorScheme.onSurfaceVariant,
+                        color: liveVisionEnabled
+                            ? accentDark
+                            : theme.colorScheme.onSurfaceVariant,
                       ),
                       side: BorderSide(color: accentDark.withOpacity(0.18)),
-                      backgroundColor: theme.colorScheme.surface.withOpacity(0.75),
+                      backgroundColor: theme.colorScheme.surface.withOpacity(
+                        0.75,
+                      ),
                       selectedColor: accent.withOpacity(0.28),
                     ),
                   ),
@@ -1176,26 +882,18 @@ class _StatusCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              cameraEnabled
-                  ? detectionText
-                  : 'Câmara desativada',
+              cameraEnabled ? detectionText : 'Câmara desativada',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 2),
             Text(visionStatus, style: theme.textTheme.bodySmall),
             if (tags.isNotEmpty) ...[
               const SizedBox(height: 2),
-              Text(
-                'Classes: $tags',
-                style: theme.textTheme.bodySmall,
-              ),
+              Text('Classes: $tags', style: theme.textTheme.bodySmall),
             ],
             if (!liveVisionEnabled) ...[
               const SizedBox(height: 2),
-              Text(
-                'Live Vision pausado',
-                style: theme.textTheme.bodySmall,
-              ),
+              Text('Live Vision pausado', style: theme.textTheme.bodySmall),
             ],
           ],
         ),
