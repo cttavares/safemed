@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <application
         android:label="safemed"
         android:name="${applicationName}"
@@ -28,6 +29,19 @@
         <receiver
             android:exported="false"
             android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
+        <!-- Direct AlarmManager receiver — fires AlarmActivity on foreground and background -->
+        <receiver
+            android:name=".AlarmBroadcastReceiver"
+            android:exported="false" />
+        <!-- Full-screen alarm Activity shown on the lock screen -->
+        <activity
+            android:name=".AlarmActivity"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/LaunchTheme" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -89,3 +89,4 @@ build/web/
 # python
 __pycache__/
 *.pyc
+analyze_out.txt
