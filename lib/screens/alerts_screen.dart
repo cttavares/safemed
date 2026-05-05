@@ -1,139 +1,28 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:safemed/models/profile.dart';
 import 'package:safemed/services/alert_store.dart';
-import 'package:safemed/services/app_settings_store.dart';
 import 'package:safemed/services/plan_store.dart';
 import 'package:safemed/services/profile_store.dart';
 import 'package:safemed/utils/plan_schedule.dart';
 
-class AlertsScreen extends StatefulWidget {
+/// Displays medication alerts that are currently due.
+///
+/// Sound and vibration are handled entirely by the system notification channel
+/// and [AlarmActivity] — this tab is intentionally silent.
+class AlertsScreen extends StatelessWidget {
   const AlertsScreen({super.key});
 
   @override
-  State<AlertsScreen> createState() => _AlertsScreenState();
-}
-
-class _AlertsScreenState extends State<AlertsScreen> {
-  final _ringtone = FlutterRingtonePlayer();
-
-  Set<String> _currentDueIds = <String>{};
-  Set<String> _silencedDueIds = <String>{};
-  bool _isAlarmPlaying = false;
-
-  @override
-  void dispose() {
-    _stopAlarm();
-    super.dispose();
-  }
-
-  void _updateAlarmState(Set<String> dueIds) {
-    if (setEquals(dueIds, _currentDueIds)) {
-      return;
-    }
-
-    _currentDueIds = dueIds;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-
-      final settings = AppSettingsStore.instance.settings;
-      if (!settings.notificationsEnabled || !settings.alarmsEnabled) {
-        _stopAlarm();
-        return;
-      }
-
-      if (dueIds.isEmpty) {
-        _silencedDueIds = <String>{};
-        _stopAlarm();
-        return;
-      }
-
-      if (setEquals(dueIds, _silencedDueIds)) {
-        _stopAlarm();
-        return;
-      }
-
-      _startAlarm();
-    });
-  }
-
-  void _startAlarm() {
-    if (_isAlarmPlaying) {
-      return;
-    }
-
-    final settings = AppSettingsStore.instance.settings;
-    if (settings.alarmTone == 'notification') {
-      _ringtone.playNotification(looping: true, asAlarm: false, volume: 1.0);
-    } else {
-      _ringtone.playAlarm(looping: true, asAlarm: true, volume: 1.0);
-    }
-
-    if (mounted) {
-      setState(() => _isAlarmPlaying = true);
-    }
-  }
-
-  void _stopAlarm() {
-    if (!_isAlarmPlaying) {
-      return;
-    }
-
-    _ringtone.stop();
-
-    if (mounted) {
-      setState(() => _isAlarmPlaying = false);
-    }
-  }
-
-  void _silenceCurrentAlerts() {
-    if (_currentDueIds.isEmpty) {
-      return;
-    }
-
-    _silencedDueIds = Set<String>.from(_currentDueIds);
-    _stopAlarm();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final planStore = PlanStore.instance;
-    final profileStore = ProfileStore.instance;
-    final alertStore = AlertStore.instance;
-    final settingsStore = AppSettingsStore.instance;
-    final listenable = Listenable.merge([
-      planStore,
-      profileStore,
-      alertStore,
-      settingsStore,
-    ]);
+    final planStore     = PlanStore.instance;
+    final profileStore  = ProfileStore.instance;
+    final alertStore    = AlertStore.instance;
+    final listenable    = Listenable.merge([planStore, profileStore, alertStore]);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Alerts'),
-        actions: [
-          if (_currentDueIds.isNotEmpty)
-            TextButton.icon(
-              onPressed: _silenceCurrentAlerts,
-              icon: Icon(
-                _isAlarmPlaying ? Icons.volume_off : Icons.notifications_off,
-                color: Theme.of(context).colorScheme.onPrimary,
-              ),
-              label: Text(
-                _isAlarmPlaying ? 'Silence' : 'Silenced',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Alerts')),
       body: AnimatedBuilder(
         animation: listenable,
         builder: (context, _) {
@@ -145,8 +34,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
             dismissedIds: alertStore.dismissedIds,
           );
 
-          _updateAlarmState(occurrences.map((o) => o.id).toSet());
-
           if (occurrences.isEmpty) {
             return const Center(child: Text('No alerts right now.'));
           }
@@ -154,12 +41,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: occurrences.length,
-            separatorBuilder: (_, index) => const SizedBox(height: 8),
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final occurrence = occurrences[index];
-              final profile = occurrence.profile;
-              final time = _formatTime(occurrence.scheduledAt);
-              final subtitle =
+              final profile    = occurrence.profile;
+              final time       = _formatTime(occurrence.scheduledAt);
+              final subtitle   =
                   '${profile.name} | ${occurrence.plan.name} | ${occurrence.medication.name}';
 
               return Card(
@@ -191,7 +78,6 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
 class _Avatar extends StatelessWidget {
   final Profile profile;
-
   const _Avatar({required this.profile});
 
   @override
@@ -204,7 +90,6 @@ class _Avatar extends StatelessWidget {
         imageProvider = FileImage(file);
       }
     }
-
     return CircleAvatar(
       backgroundImage: imageProvider,
       child: imageProvider == null ? Text(_initial(profile.name)) : null,
@@ -213,9 +98,7 @@ class _Avatar extends StatelessWidget {
 
   String _initial(String name) {
     final trimmed = name.trim();
-    if (trimmed.isEmpty) {
-      return '?';
-    }
+    if (trimmed.isEmpty) return '?';
     return trimmed[0].toUpperCase();
   }
 }

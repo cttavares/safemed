@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:safemed/services/app_settings_store.dart';
@@ -24,8 +27,13 @@ class MedicationAlarmScheduler {
   static const int _iosMaxPending = 60;
   static const int _lookaheadDays = 30;
 
+  static const _alarmChannel = MethodChannel('safemed/alarm_manager');
+
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
+
+  /// Tracks IDs of AlarmManager alarms so we can cancel them in [cancelAll].
+  final Set<int> _scheduledAlarmIds = <int>{};
 
   bool _initialized = false;
 
@@ -60,7 +68,10 @@ class MedicationAlarmScheduler {
     await initialize();
     final settings = AppSettingsStore.instance.settings;
 
+    // Cancel flutter_local_notifications alarms
     await _notifications.cancelAll();
+    // Cancel direct AlarmManager alarms
+    await _cancelAllAlarmManagerAlarms();
 
     if (!settings.notificationsEnabled) {
       return;
@@ -85,12 +96,53 @@ class MedicationAlarmScheduler {
             UILocalNotificationDateInterpretation.absoluteTime,
         payload: alarm.uniqueKey,
       );
+      // Also schedule a direct AlarmManager alarm so AlarmActivity fires
+      // even when the app is in the foreground.
+      await _scheduleAlarmManagerAlarm(
+        id: id,
+        title: alarm.title,
+        body: alarm.body,
+        triggerAtMillis: alarm.scheduledAt.millisecondsSinceEpoch,
+      );
     }
   }
 
   Future<void> cancelAll() async {
     await initialize();
     await _notifications.cancelAll();
+    await _cancelAllAlarmManagerAlarms();
+  }
+
+  // ── AlarmManager helpers (Android only) ──────────────────────────────────
+
+  Future<void> _scheduleAlarmManagerAlarm({
+    required int id,
+    required String title,
+    required String body,
+    required int triggerAtMillis,
+  }) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _alarmChannel.invokeMethod<void>('scheduleAlarm', {
+        'id': id,
+        'title': title,
+        'body': body,
+        'triggerAtMillis': triggerAtMillis,
+      });
+      _scheduledAlarmIds.add(id);
+    } catch (_) {
+      // AlarmManager scheduling is best-effort; notification is the fallback.
+    }
+  }
+
+  Future<void> _cancelAllAlarmManagerAlarms() async {
+    if (!Platform.isAndroid) return;
+    for (final id in _scheduledAlarmIds) {
+      try {
+        await _alarmChannel.invokeMethod<void>('cancelAlarm', {'id': id});
+      } catch (_) {}
+    }
+    _scheduledAlarmIds.clear();
   }
 
   NotificationDetails _detailsForAlarm({
@@ -124,6 +176,13 @@ class MedicationAlarmScheduler {
       _ => null,
     };
 
+    // Strong repeating vibration: wait 0 ms, buzz 900 ms, pause 400 ms (repeat)
+    final vibrationPattern =
+        vibrationEnabled ? Int64List.fromList([0, 900, 400]) : null;
+
+    // Whether to show the full-screen alarm overlay on the lock screen
+    final showFullScreen = resolvedTone != 'notification' && soundEnabled;
+
     return NotificationDetails(
       android: AndroidNotificationDetails(
         channelId,
@@ -134,6 +193,7 @@ class MedicationAlarmScheduler {
         category: AndroidNotificationCategory.alarm,
         playSound: soundEnabled,
         enableVibration: vibrationEnabled,
+        vibrationPattern: vibrationPattern,
         autoCancel: false,
         ongoing: true,
         additionalFlags: Int32List.fromList(const <int>[4]),
@@ -145,7 +205,7 @@ class MedicationAlarmScheduler {
         audioAttributesUsage: resolvedTone == 'notification'
             ? AudioAttributesUsage.notification
             : AudioAttributesUsage.alarm,
-        fullScreenIntent: resolvedTone != 'notification' && soundEnabled,
+        fullScreenIntent: showFullScreen,
         visibility: NotificationVisibility.public,
       ),
       iOS: DarwinNotificationDetails(
@@ -299,6 +359,13 @@ class MedicationAlarmScheduler {
     final dynamic dynamicAndroid = androidImpl;
     try {
       await dynamicAndroid?.requestExactAlarmsPermission();
+    } catch (_) {}
+
+    // Android 14+ requires explicit permission to show full-screen intents
+    // (USE_FULL_SCREEN_INTENT). The plugin exposes this via
+    // requestFullScreenIntentPermission if available.
+    try {
+      await dynamicAndroid?.requestFullScreenIntentPermission();
     } catch (_) {}
 
     final iosImpl = _notifications

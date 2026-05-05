@@ -25,17 +25,22 @@ class _MedicationHistoryScreenState extends State<MedicationHistoryScreen> {
   DateTimeRange? _selectedDateRange;
   String _selectedStatus = 'all';
   String _searchQuery = '';
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickDay() async {
     final now = DateTime.now();
-    final initialDate = _selectedDay ?? now;
     final picked = await showDatePicker(
       context: context,
-      initialDate: initialDate,
+      initialDate: _selectedDay ?? now,
       firstDate: DateTime(now.year - 10),
       lastDate: DateTime(now.year + 10),
     );
-
     if (picked != null) {
       setState(() {
         _selectedDay = picked;
@@ -46,14 +51,12 @@ class _MedicationHistoryScreenState extends State<MedicationHistoryScreen> {
 
   Future<void> _pickDateRange() async {
     final now = DateTime.now();
-    final initialRange = _selectedDateRange;
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(now.year - 10),
       lastDate: DateTime(now.year + 10),
-      initialDateRange: initialRange,
+      initialDateRange: _selectedDateRange,
     );
-
     if (picked != null) {
       setState(() {
         _selectedDateRange = picked;
@@ -63,6 +66,7 @@ class _MedicationHistoryScreenState extends State<MedicationHistoryScreen> {
   }
 
   void _clearFilters() {
+    _searchController.clear();
     setState(() {
       _selectedPlanId = null;
       _selectedDay = null;
@@ -72,157 +76,143 @@ class _MedicationHistoryScreenState extends State<MedicationHistoryScreen> {
     });
   }
 
+  bool get _hasActiveFilters =>
+      _selectedPlanId != null ||
+      _selectedDay != null ||
+      _selectedDateRange != null ||
+      _selectedStatus != 'all' ||
+      _searchQuery.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     final historyStore = MedicationHistoryStore.instance;
     final planStore = PlanStore.instance;
 
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.profileName} - Medication History')),
+      appBar: AppBar(
+        title: Text('${widget.profileName} — History'),
+        actions: [
+          if (_hasActiveFilters)
+            IconButton(
+              tooltip: 'Clear all filters',
+              icon: const Icon(Icons.filter_alt_off),
+              onPressed: _clearFilters,
+            ),
+        ],
+      ),
       body: AnimatedBuilder(
         animation: Listenable.merge([historyStore, planStore]),
         builder: (context, _) {
           final plans = planStore.plans
-              .where((plan) => plan.profileId == widget.profileId)
+              .where((p) => p.profileId == widget.profileId)
               .toList()
             ..sort((a, b) => b.startDate.compareTo(a.startDate));
 
-          final selectedPlanId = plans.any((plan) => plan.id == _selectedPlanId)
-              ? _selectedPlanId
-              : null;
-          final historyForProfile = historyStore.getForProfileFiltered(
+          final selectedPlanId =
+              plans.any((p) => p.id == _selectedPlanId) ? _selectedPlanId : null;
+
+          final base = historyStore.getForProfileFiltered(
             widget.profileId,
             planId: selectedPlanId,
             day: _selectedDay,
           );
 
-          final filteredHistory = historyForProfile.where((history) {
+          final filtered = base.where((h) {
+            // date-range filter
             if (_selectedDateRange != null) {
-              final entryStart = DateTime(
-                history.startDate.year,
-                history.startDate.month,
-                history.startDate.day,
-              );
-              final entryEnd = history.endDate == null
-                  ? entryStart
-                  : DateTime(
-                      history.endDate!.year,
-                      history.endDate!.month,
-                      history.endDate!.day,
-                    );
-              final rangeStart = DateTime(
-                _selectedDateRange!.start.year,
-                _selectedDateRange!.start.month,
-                _selectedDateRange!.start.day,
-              );
-              final rangeEnd = DateTime(
-                _selectedDateRange!.end.year,
-                _selectedDateRange!.end.month,
-                _selectedDateRange!.end.day,
-              );
-
-              final overlapsRange = !entryEnd.isBefore(rangeStart) &&
-                  !entryStart.isAfter(rangeEnd);
-              if (!overlapsRange) {
-                return false;
-              }
+              final s = _dateOnly(h.startDate);
+              final e = h.endDate != null ? _dateOnly(h.endDate!) : s;
+              final rs = _dateOnly(_selectedDateRange!.start);
+              final re = _dateOnly(_selectedDateRange!.end);
+              if (e.isBefore(rs) || s.isAfter(re)) return false;
             }
-            if (_selectedStatus == 'active' && !history.isActive) {
-              return false;
+            // status filter
+            if (_selectedStatus == 'active' && !h.isActive) return false;
+            if (_selectedStatus == 'past' && h.isActive) return false;
+            // search filter
+            final q = _searchQuery.trim().toLowerCase();
+            if (q.isNotEmpty) {
+              final hit = h.medicationName.toLowerCase().contains(q) ||
+                  h.dose.toLowerCase().contains(q) ||
+                  h.reasonForTaking.toLowerCase().contains(q) ||
+                  (h.planName?.toLowerCase().contains(q) ?? false) ||
+                  h.notes.toLowerCase().contains(q);
+              if (!hit) return false;
             }
-            if (_selectedStatus == 'past' && history.isActive) {
-              return false;
-            }
-            if (_searchQuery.trim().isEmpty) {
-              return true;
-            }
-
-            final query = _searchQuery.trim().toLowerCase();
-            return history.medicationName.toLowerCase().contains(query) ||
-                history.dose.toLowerCase().contains(query) ||
-                history.reasonForTaking.toLowerCase().contains(query) ||
-                (history.planName?.toLowerCase().contains(query) ?? false);
+            return true;
           }).toList();
 
-          final activeHistory = filteredHistory.where((h) => h.isActive).toList();
-          final pastHistory = filteredHistory.where((h) => !h.isActive).toList();
-          final summaries = _buildUsageSummaries(filteredHistory);
-          final totalEntries = filteredHistory.length;
-          final distinctMedicines = summaries.length;
+          final active = filtered.where((h) => h.isActive).toList();
+          final past = filtered.where((h) => !h.isActive).toList();
+          final summaries = _buildSummaries(filtered);
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // ── Stats ────────────────────────────────────────────────────
               _OverviewCard(
-                totalEntries: totalEntries,
-                distinctMedicines: distinctMedicines,
-                activeEntries: activeHistory.length,
+                total: filtered.length,
+                distinct: summaries.length,
+                active: active.length,
               ),
               const SizedBox(height: 16),
+
+              // ── Filters ──────────────────────────────────────────────────
               _FiltersCard(
                 plans: plans,
                 selectedPlanId: selectedPlanId,
                 selectedDay: _selectedDay,
                 selectedDateRange: _selectedDateRange,
                 selectedStatus: _selectedStatus,
-                searchQuery: _searchQuery,
-                onPlanChanged: (value) => setState(() => _selectedPlanId = value),
+                searchController: _searchController,
+                onPlanChanged: (v) => setState(() => _selectedPlanId = v),
                 onPickDay: _pickDay,
                 onPickDateRange: _pickDateRange,
-                onStatusChanged: (value) => setState(() => _selectedStatus = value),
-                onSearchChanged: (value) => setState(() => _searchQuery = value),
+                onStatusChanged: (v) => setState(() => _selectedStatus = v),
+                onSearchChanged: (v) => setState(() => _searchQuery = v),
                 onClearDay: _selectedDay == null
                     ? null
                     : () => setState(() => _selectedDay = null),
                 onClearRange: _selectedDateRange == null
-                  ? null
-                  : () => setState(() => _selectedDateRange = null),
-                onClearAll: (selectedPlanId != null || _selectedDay != null || _selectedDateRange != null)
-                    || _selectedStatus != 'all'
-                    || _searchQuery.isNotEmpty
-                    ? _clearFilters
-                    : null,
+                    ? null
+                    : () => setState(() => _selectedDateRange = null),
               ),
               const SizedBox(height: 16),
+
+              // ── Medication overview ──────────────────────────────────────
               if (summaries.isNotEmpty) ...[
-                const Text(
-                  'Medication overview',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
+                _SectionHeader('Medication overview'),
+                const SizedBox(height: 8),
                 Card(
                   child: Column(
                     children: summaries
-                        .map((summary) => _SummaryTile(summary: summary))
+                        .map((s) => _SummaryTile(summary: s))
                         .toList(),
                   ),
                 ),
                 const SizedBox(height: 24),
               ],
-              if (filteredHistory.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Text('No medication history for the selected filters.'),
-                  ),
-                )
+
+              // ── Timeline ─────────────────────────────────────────────────
+              if (filtered.isEmpty)
+                _EmptyState(hasFilters: _hasActiveFilters)
               else ...[
-                if (activeHistory.isNotEmpty) ...[
-                  const Text(
-                    'Currently Taking',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  ...activeHistory.map((entry) => _HistoryCard(entry: entry)),
+                if (active.isNotEmpty) ...[
+                  _SectionHeader('Currently Taking'),
+                  const SizedBox(height: 8),
+                  ..._groupByMonth(active).entries.expand((e) => [
+                        _MonthDivider(label: e.key),
+                        ...e.value.map((h) => _HistoryCard(entry: h)),
+                      ]),
                   const SizedBox(height: 24),
                 ],
-                if (pastHistory.isNotEmpty) ...[
-                  const Text(
-                    'Past Medications',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  ...pastHistory.map((entry) => _HistoryCard(entry: entry)),
+                if (past.isNotEmpty) ...[
+                  _SectionHeader('Past Medications'),
+                  const SizedBox(height: 8),
+                  ..._groupByMonth(past).entries.expand((e) => [
+                        _MonthDivider(label: e.key),
+                        ...e.value.map((h) => _HistoryCard(entry: h)),
+                      ]),
                 ],
               ],
             ],
@@ -232,52 +222,139 @@ class _MedicationHistoryScreenState extends State<MedicationHistoryScreen> {
     );
   }
 
-  List<_UsageSummary> _buildUsageSummaries(List<MedicationHistory> history) {
-    final grouped = <String, _UsageSummary>{};
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
-    for (final entry in history) {
-      final key = entry.medicationName.trim().toLowerCase();
-      if (key.isEmpty) {
-        continue;
-      }
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
-      final existing = grouped[key];
-      if (existing == null) {
-        grouped[key] = _UsageSummary(
-          medicationName: entry.medicationName,
-          dose: entry.dose,
-          count: 1,
-          latestStartDate: entry.startDate,
-          activeCount: entry.isActive ? 1 : 0,
-        );
-        continue;
-      }
-
-      grouped[key] = existing.copyWith(
-        count: existing.count + 1,
-        latestStartDate: entry.startDate.isAfter(existing.latestStartDate)
-            ? entry.startDate
-            : existing.latestStartDate,
-        activeCount: existing.activeCount + (entry.isActive ? 1 : 0),
-        dose: existing.dose.isEmpty ? entry.dose : existing.dose,
-      );
+  /// Groups entries by "Month Year" label, newest first.
+  Map<String, List<MedicationHistory>> _groupByMonth(
+      List<MedicationHistory> entries) {
+    final result = <String, List<MedicationHistory>>{};
+    for (final h in entries) {
+      final key = _monthLabel(h.startDate);
+      result.putIfAbsent(key, () => []).add(h);
     }
+    return result;
+  }
 
-    final summaries = grouped.values.toList();
-    summaries.sort((a, b) => b.count.compareTo(a.count));
-    return summaries;
+  String _monthLabel(DateTime d) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    return '${months[d.month - 1]} ${d.year}';
+  }
+
+  List<_UsageSummary> _buildSummaries(List<MedicationHistory> history) {
+    final grouped = <String, _UsageSummary>{};
+    for (final h in history) {
+      final key = h.medicationName.trim().toLowerCase();
+      if (key.isEmpty) continue;
+      final ex = grouped[key];
+      if (ex == null) {
+        grouped[key] = _UsageSummary(
+          medicationName: h.medicationName,
+          dose: h.dose,
+          count: 1,
+          latestStartDate: h.startDate,
+          activeCount: h.isActive ? 1 : 0,
+        );
+      } else {
+        grouped[key] = ex.copyWith(
+          count: ex.count + 1,
+          latestStartDate: h.startDate.isAfter(ex.latestStartDate)
+              ? h.startDate
+              : ex.latestStartDate,
+          activeCount: ex.activeCount + (h.isActive ? 1 : 0),
+          dose: ex.dose.isEmpty ? h.dose : ex.dose,
+        );
+      }
+    }
+    final list = grouped.values.toList()
+      ..sort((a, b) => b.count.compareTo(a.count));
+    return list;
+  }
+}
+
+// ── Widgets ──────────────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final String text;
+  const _SectionHeader(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context)
+          .textTheme
+          .titleMedium
+          ?.copyWith(fontWeight: FontWeight.bold),
+    );
+  }
+}
+
+class _MonthDivider extends StatelessWidget {
+  final String label;
+  const _MonthDivider({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 4),
+      child: Row(
+        children: [
+          Container(width: 3, height: 14, color: color,
+              margin: const EdgeInsets.only(right: 8)),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                  letterSpacing: 0.5)),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final bool hasFilters;
+  const _EmptyState({required this.hasFilters});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      child: Column(
+        children: [
+          Icon(Icons.history_toggle_off_outlined,
+              size: 64,
+              color: Theme.of(context).colorScheme.outlineVariant),
+          const SizedBox(height: 16),
+          Text(
+            hasFilters
+                ? 'No records match the current filters.'
+                : 'No medication history yet.',
+            style: Theme.of(context).textTheme.bodyLarge,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
 }
 
 class _OverviewCard extends StatelessWidget {
-  final int totalEntries;
-  final int distinctMedicines;
-  final int activeEntries;
+  final int total;
+  final int distinct;
+  final int active;
 
   const _OverviewCard({
-    required this.totalEntries,
-    required this.distinctMedicines,
-    required this.activeEntries,
+    required this.total,
+    required this.distinct,
+    required this.active,
   });
 
   @override
@@ -288,36 +365,31 @@ class _OverviewCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'History overview',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            Text('History overview',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: _StatTile(
-                    label: 'Records',
-                    value: totalEntries.toString(),
-                    icon: Icons.description_outlined,
-                  ),
-                ),
-                const SizedBox(width: 12),
+                    child: _StatTile(
+                        label: 'Records',
+                        value: '$total',
+                        icon: Icons.description_outlined)),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: _StatTile(
-                    label: 'Different meds',
-                    value: distinctMedicines.toString(),
-                    icon: Icons.medication_outlined,
-                  ),
-                ),
-                const SizedBox(width: 12),
+                    child: _StatTile(
+                        label: 'Medications',
+                        value: '$distinct',
+                        icon: Icons.medication_outlined)),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: _StatTile(
-                    label: 'Active',
-                    value: activeEntries.toString(),
-                    icon: Icons.play_circle_outline,
-                  ),
-                ),
+                    child: _StatTile(
+                        label: 'Active',
+                        value: '$active',
+                        icon: Icons.play_circle_outline)),
               ],
             ),
           ],
@@ -331,12 +403,8 @@ class _StatTile extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-
-  const _StatTile({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
+  const _StatTile(
+      {required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -346,19 +414,14 @@ class _StatTile extends StatelessWidget {
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 12)),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, size: 18),
+        const SizedBox(height: 10),
+        Text(value,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(fontSize: 11)),
+      ]),
     );
   }
 }
@@ -369,7 +432,7 @@ class _FiltersCard extends StatelessWidget {
   final DateTime? selectedDay;
   final DateTimeRange? selectedDateRange;
   final String selectedStatus;
-  final String searchQuery;
+  final TextEditingController searchController;
   final ValueChanged<String?> onPlanChanged;
   final VoidCallback onPickDay;
   final VoidCallback onPickDateRange;
@@ -377,7 +440,6 @@ class _FiltersCard extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final VoidCallback? onClearDay;
   final VoidCallback? onClearRange;
-  final VoidCallback? onClearAll;
 
   const _FiltersCard({
     required this.plans,
@@ -385,7 +447,7 @@ class _FiltersCard extends StatelessWidget {
     required this.selectedDay,
     required this.selectedDateRange,
     required this.selectedStatus,
-    required this.searchQuery,
+    required this.searchController,
     required this.onPlanChanged,
     required this.onPickDay,
     required this.onPickDateRange,
@@ -393,7 +455,6 @@ class _FiltersCard extends StatelessWidget {
     required this.onSearchChanged,
     required this.onClearDay,
     required this.onClearRange,
-    required this.onClearAll,
   });
 
   @override
@@ -404,296 +465,349 @@ class _FiltersCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Filters',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            Text('Filters',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
+
+            // Plan dropdown
             DropdownButtonFormField<String?>(
               value: selectedPlanId,
               decoration: const InputDecoration(
-                labelText: 'Prescription plan',
-                border: OutlineInputBorder(),
-              ),
+                  labelText: 'Prescription plan',
+                  border: OutlineInputBorder(),
+                  isDense: true),
               items: [
                 const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('All plans'),
-                ),
-                ...plans.map(
-                  (plan) => DropdownMenuItem<String?>(
-                    value: plan.id,
-                    child: Text(plan.name),
-                  ),
-                ),
+                    value: null, child: Text('All plans')),
+                ...plans.map((p) =>
+                    DropdownMenuItem<String?>(value: p.id, child: Text(p.name))),
               ],
               onChanged: onPlanChanged,
             ),
             const SizedBox(height: 12),
+
+            // Search
             TextField(
+              controller: searchController,
               onChanged: onSearchChanged,
               decoration: InputDecoration(
-                labelText: 'Search medication',
-                hintText: 'Name, dose, plan or reason',
+                labelText: 'Search',
+                hintText: 'Name, dose, plan or reason…',
                 border: const OutlineInputBorder(),
+                isDense: true,
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: searchQuery.isEmpty
+                suffixIcon: searchController.text.isEmpty
                     ? null
                     : IconButton(
-                        onPressed: () => onSearchChanged(''),
                         icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          searchController.clear();
+                          onSearchChanged('');
+                        },
                       ),
               ),
             ),
             const SizedBox(height: 12),
+
+            // Status
             DropdownButtonFormField<String>(
               value: selectedStatus,
               decoration: const InputDecoration(
-                labelText: 'Status',
-                border: OutlineInputBorder(),
-              ),
+                  labelText: 'Status',
+                  border: OutlineInputBorder(),
+                  isDense: true),
               items: const [
                 DropdownMenuItem(value: 'all', child: Text('All')),
                 DropdownMenuItem(value: 'active', child: Text('Active only')),
                 DropdownMenuItem(value: 'past', child: Text('Past only')),
               ],
-              onChanged: (value) => onStatusChanged(value ?? 'all'),
+              onChanged: (v) => onStatusChanged(v ?? 'all'),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onPickDay,
-                    icon: const Icon(Icons.calendar_today),
-                    label: Text(
-                      selectedDay == null
-                          ? 'Pick a day'
-                          : _formatDate(selectedDay!),
-                    ),
-                  ),
-                ),
-                if (selectedDay != null) ...[
-                  const SizedBox(width: 12),
-                  TextButton(
-                    onPressed: onClearDay,
-                    child: const Text('Clear date'),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onPickDateRange,
-                    icon: const Icon(Icons.date_range),
-                    label: Text(
-                      selectedDateRange == null
-                          ? 'Pick a date range'
-                          : _formatRange(selectedDateRange!),
-                    ),
-                  ),
-                ),
-                if (selectedDateRange != null) ...[
-                  const SizedBox(width: 12),
-                  TextButton(
-                    onPressed: onClearRange,
-                    child: const Text('Clear range'),
-                  ),
-                ],
-              ],
-            ),
-            if (onClearAll != null) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: onClearAll,
-                  icon: const Icon(Icons.filter_alt_off),
-                  label: const Text('Clear all filters'),
+
+            // Date pickers row
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onPickDay,
+                  icon: const Icon(Icons.calendar_today, size: 16),
+                  label: Text(selectedDay == null
+                      ? 'Pick a day'
+                      : _fmt(selectedDay!)),
                 ),
               ),
-            ],
+              if (onClearDay != null) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: onClearDay,
+                    tooltip: 'Clear date'),
+              ],
+            ]),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onPickDateRange,
+                  icon: const Icon(Icons.date_range, size: 16),
+                  label: Text(selectedDateRange == null
+                      ? 'Pick a date range'
+                      : '${_fmt(selectedDateRange!.start)} – ${_fmt(selectedDateRange!.end)}'),
+                ),
+              ),
+              if (onClearRange != null) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: onClearRange,
+                    tooltip: 'Clear range'),
+              ],
+            ]),
           ],
         ),
       ),
     );
   }
 
-  static String _formatRange(DateTimeRange range) {
-    return '${_formatDate(range.start)} - ${_formatDate(range.end)}';
-  }
-
-  static String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+  static String _fmt(DateTime d) {
+    const m = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${d.day} ${m[d.month - 1]} ${d.year}';
   }
 }
 
 class _HistoryCard extends StatelessWidget {
   final MedicationHistory entry;
-
   const _HistoryCard({required this.entry});
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final duration = _durationLabel(entry);
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry.medicationName,
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // ── Header row ────────────────────────────────────────────────
+          Row(children: [
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(entry.medicationName,
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                            fontSize: 15, fontWeight: FontWeight.bold)),
+                    if (entry.dose.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(entry.dose,
+                            style: TextStyle(
+                                fontSize: 13, color: cs.onSurfaceVariant)),
                       ),
-                      if (entry.dose.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          entry.dose,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (entry.isActive)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Active',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
+                  ]),
             ),
-            const SizedBox(height: 12),
-            _InfoRow(
-              icon: Icons.calendar_today,
+            const SizedBox(width: 8),
+            // Active / duration badge
+            if (entry.isActive)
+              _Badge(label: 'Active', color: Colors.green.shade600)
+            else if (duration != null)
+              _Badge(label: duration, color: cs.primary),
+          ]),
+
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+
+          // ── Details ───────────────────────────────────────────────────
+          _InfoRow(
+              icon: Icons.calendar_today_outlined,
               label: 'Started',
-              value: _formatDate(entry.startDate),
-            ),
-            if (entry.endDate != null) ...[
-              const SizedBox(height: 8),
-              _InfoRow(
-                icon: Icons.event_available,
+              value: _fmtFull(entry.startDate)),
+          if (entry.endDate != null) ...[
+            const SizedBox(height: 6),
+            _InfoRow(
+                icon: Icons.event_available_outlined,
                 label: 'Ended',
-                value: _formatDate(entry.endDate!),
-              ),
-            ],
-            if (entry.planName != null && entry.planName!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              _InfoRow(
+                value: _fmtFull(entry.endDate!)),
+          ],
+          if (entry.planName != null && entry.planName!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _InfoRow(
                 icon: Icons.assignment_outlined,
                 label: 'Plan',
-                value: entry.planName!,
-              ),
-            ],
-            if (entry.reasonForTaking.isNotEmpty &&
-                entry.reasonForTaking != entry.planName) ...[
-              const SizedBox(height: 8),
-              _InfoRow(
-                icon: Icons.medical_information,
+                value: entry.planName!),
+          ],
+          // Show reason only if it differs from planName
+          if (entry.reasonForTaking.isNotEmpty &&
+              entry.reasonForTaking != entry.planName) ...[
+            const SizedBox(height: 6),
+            _InfoRow(
+                icon: Icons.medical_information_outlined,
                 label: 'Reason',
-                value: entry.reasonForTaking,
-              ),
-            ],
-            if (entry.reasonForStopping != null &&
-                entry.reasonForStopping!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              _InfoRow(
+                value: entry.reasonForTaking),
+          ],
+          if (entry.reasonForStopping != null &&
+              entry.reasonForStopping!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _InfoRow(
                 icon: Icons.stop_circle_outlined,
                 label: 'Stopped',
-                value: entry.reasonForStopping!,
-              ),
-            ],
-            if (entry.effectivenessRating != null) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.star, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Effectiveness: ',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                  ...List.generate(
-                    5,
-                    (index) => Icon(
-                      index < entry.effectivenessRating!
-                          ? Icons.star
-                          : Icons.star_border,
-                      size: 16,
-                      color: Colors.amber,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            if (entry.notes.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              _InfoRow(icon: Icons.notes, label: 'Notes', value: entry.notes),
-            ],
+                value: entry.reasonForStopping!),
           ],
-        ),
+          if (entry.effectivenessRating != null) ...[
+            const SizedBox(height: 6),
+            _StarRating(rating: entry.effectivenessRating!),
+          ],
+          if (entry.notes.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _InfoRow(
+                icon: Icons.notes_outlined,
+                label: 'Notes',
+                value: entry.notes),
+          ],
+        ]),
       ),
     );
   }
 
-  static String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+  String? _durationLabel(MedicationHistory h) {
+    if (h.endDate == null) return null;
+    final days = h.endDate!.difference(h.startDate).inDays;
+    if (days == 0) return '1 day';
+    if (days == 1) return '1 day';
+    if (days < 7) return '$days days';
+    final weeks = (days / 7).round();
+    if (days < 31) return '$weeks wk${weeks > 1 ? 's' : ''}';
+    final months = (days / 30.5).round();
+    return '$months mo${months > 1 ? 's' : ''}';
+  }
+
+  static String _fmtFull(DateTime d) {
+    const m = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${d.day} ${m[d.month - 1]} ${d.year}';
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _Badge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+    );
+  }
+}
+
+class _StarRating extends StatelessWidget {
+  final int rating;
+  const _StarRating({required this.rating});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Icon(Icons.star_outline,
+          size: 15, color: Theme.of(context).colorScheme.onSurfaceVariant),
+      const SizedBox(width: 6),
+      Text('Effectiveness: ',
+          style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      ...List.generate(
+          5,
+          (i) => Icon(i < rating ? Icons.star : Icons.star_border,
+              size: 15, color: Colors.amber)),
+    ]);
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _InfoRow(
+      {required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 14, color: color),
+      const SizedBox(width: 6),
+      Expanded(
+        child: RichText(
+          text: TextSpan(
+            style: TextStyle(fontSize: 13, color: color),
+            children: [
+              TextSpan(
+                  text: '$label: ',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              TextSpan(text: value),
+            ],
+          ),
+        ),
+      ),
+    ]);
   }
 }
 
 class _SummaryTile extends StatelessWidget {
   final _UsageSummary summary;
-
   const _SummaryTile({required this.summary});
 
   @override
   Widget build(BuildContext context) {
+    final parts = <String>[];
+    if (summary.dose.isNotEmpty) parts.add(summary.dose);
+    parts.add('${summary.count} record${summary.count != 1 ? 's' : ''}');
+    if (summary.activeCount > 0) {
+      parts.add('${summary.activeCount} active');
+    }
+
     return ListTile(
-      leading: const Icon(Icons.medication_outlined),
-      title: Text(summary.medicationName),
-      subtitle: Text(
-        [
-          if (summary.dose.isNotEmpty) summary.dose,
-          '${summary.count} record(s)',
-          if (summary.activeCount > 0) '${summary.activeCount} active',
-        ].join(' • '),
+      leading: CircleAvatar(
+        radius: 18,
+        backgroundColor:
+            Theme.of(context).colorScheme.primaryContainer,
+        child: Text(
+          summary.medicationName.isNotEmpty
+              ? summary.medicationName[0].toUpperCase()
+              : '?',
+          style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onPrimaryContainer),
+        ),
       ),
-      trailing: Text(
-        summary.count.toString(),
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
+      title: Text(summary.medicationName,
+          style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(parts.join(' · '),
+          style: const TextStyle(fontSize: 12)),
     );
   }
 }
+
+// ── Data model ───────────────────────────────────────────────────────────────
 
 class _UsageSummary {
   final String medicationName;
@@ -723,43 +837,6 @@ class _UsageSummary {
       count: count ?? this.count,
       latestStartDate: latestStartDate ?? this.latestStartDate,
       activeCount: activeCount ?? this.activeCount,
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: Colors.grey[600]),
-        const SizedBox(width: 8),
-        Expanded(
-          child: RichText(
-            text: TextSpan(
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              children: [
-                TextSpan(
-                  text: '$label: ',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                TextSpan(text: value),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
