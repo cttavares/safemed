@@ -15,6 +15,9 @@ STATISTICS_URL = "https://extranet.infarmed.pt/INFOMED-fo/"
 BASE_URL = "https://www.infarmed.pt/web/infarmed/servicos-on-line/pesquisa-do-medicamento"
 DCI_IFRAME_SELECTOR = "iframe[src*='pesquisaMedicamento.jsf']"
 
+OUTPUT_DIR = Path.cwd() / ".." / "outputs"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
 # VARIABLES
 statistics_infomed = [0, 0, 0, ""] # [nDCIs, nMedicamentos, nApresentações, lastUpdate]
 
@@ -107,3 +110,66 @@ async def get_statistics():
 
         await browser.close()
         return statistics_infomed
+    
+        
+# EXPORT FUNCTIONS
+def export_dcis(dcis: Iterable[str], filename_prefix: str = "dcis_infomed") -> None:
+	"""Exportar lista de DCIs para JSON e CSV"""
+	dcis_list = sorted(list(set(dcis)))
+	
+	if not dcis_list:
+		raise RuntimeError("Nenhuma DCI foi fornecida para exportar.")
+	
+	csv_path = OUTPUT_DIR / f"{filename_prefix}.csv"
+	json_path = OUTPUT_DIR / f"{filename_prefix}.json"
+	
+	# Exportar para CSV
+	with csv_path.open("w", newline="", encoding="utf-8-sig") as csv_file:
+		writer = csv.writer(csv_file)
+		writer.writerow(["DCI"])
+		for dci in dcis_list:
+			writer.writerow([dci])
+	
+	# Exportar para JSON
+	with json_path.open("w", encoding="utf-8") as json_file:
+		json.dump({
+			"total": len(dcis_list),
+			"dcis": dcis_list,
+			"data_exportacao": time.strftime("%Y-%m-%d %H:%M:%S")
+		}, json_file, ensure_ascii=False, indent=2)
+	
+	print(f"✓ Exportação de DCIs concluída: {len(dcis_list)} substâncias")
+	print(f"  CSV: {csv_path}")
+	print(f"  JSON: {json_path}")
+
+
+def export_tables(records: Iterable[dict], filename_prefix: str = "medicamentos_infomed") -> None:
+	"""Exportar tabelas de medicamentos para JSON e CSV"""
+	records_list = list(records)
+	
+	if not records_list:
+		raise RuntimeError("Nenhum medicamento foi extraído para exportar.")
+	
+	csv_path = OUTPUT_DIR / f"{filename_prefix}.csv"
+	json_path = OUTPUT_DIR / f"{filename_prefix}.json"
+	
+	# Obter nomes de colunas do primeiro registo
+	fieldnames = list(records_list[0].keys())
+	
+	# Exportar para CSV
+	with csv_path.open("w", newline="", encoding="utf-8-sig") as csv_file:
+		writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+		writer.writeheader()
+		writer.writerows(records_list)
+	
+	# Exportar para JSON
+	with json_path.open("w", encoding="utf-8") as json_file:
+		json.dump({
+			"total": len(records_list),
+			"records": records_list,
+			"data_exportacao": time.strftime("%Y-%m-%d %H:%M:%S")
+		}, json_file, ensure_ascii=False, indent=2)
+	
+	print(f"✓ Exportação de medicamentos concluída: {len(records_list)} registos")
+	print(f"  CSV: {csv_path}")
+	print(f"  JSON: {json_path}")

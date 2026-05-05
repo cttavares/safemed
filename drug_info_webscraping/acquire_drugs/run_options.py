@@ -5,7 +5,8 @@ try:
         extract_dci_for_term,
     )
     from .table_scrapper import (
-        extract_table_from_dci
+        extract_table_from_dci,
+        extract_all_tables
     )
 except Exception:
     from dci_scrapper import (
@@ -14,7 +15,8 @@ except Exception:
         extract_dci_for_term,
     )
     from table_scrapper import (
-        extract_table_from_dci
+        extract_table_from_dci,
+        extract_all_tables
     )
 
 
@@ -79,7 +81,15 @@ async def protocol_menu():
 
         if choice == "2":
             print(f"ALL TABLES...\n")
-           # TODO: Implementar esta funcionalidade
+            
+            dcis = [
+                "Ácido acetilsalicílico",
+                "Clorofenamina + Paracetamol",
+            ]
+            
+            results = await extract_all_tables(dcis, max_workers = 2)
+            print(f"Total de rows processados: {len(results)}")
+            print(results)  
             return
 
         if choice == "3":

@@ -1,6 +1,4 @@
 # IMPORTS
-import csv
-import json
 import time
 import asyncio
 from pathlib import Path
@@ -24,24 +22,18 @@ except Exception:
 # CONSTANTS
 BASE_URL = "https://www.infarmed.pt/web/infarmed/servicos-on-line/pesquisa-do-medicamento"
 
-OUTPUT_DIR = Path.cwd() / ".." / "outputs"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-CSV_PATH = OUTPUT_DIR / "medicamentos_infomed.csv"
-JSON_PATH = OUTPUT_DIR / "medicamentos_infomed.json"
-
 DCI_INPUT_SELECTOR = "input#form\\:dci_input"
 AUTOCOMPLETE_PANEL_SELECTOR = "ul.ui-autocomplete-items"
 
 todas_substancias = set()
 
 # AUTOCORRECT 3 Leters Combination to get DCIs
-async def extract_all_dci():
+async def extract_all_dci(max_workers: int = 6):
     # Gerar combinações: aaa, aab, aac... zzz
      
     combinacoes = [''.join(i) for i in itertools.product(string.ascii_lowercase, repeat=3)]
     total_combinacoes = len(combinacoes)
     inicio = time.monotonic()
-    max_workers = 6
     
     todas_substancias = set()
     last_status_len = 0

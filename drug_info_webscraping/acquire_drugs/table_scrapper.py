@@ -1,22 +1,18 @@
 # IMPORTS
-import csv
-import json
 import time
 import asyncio
 from pathlib import Path
 from typing import Iterable
-import string
-import itertools
 
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
+try:
+	from .utils import get_statistics
+except Exception:
+	from utils import get_statistics
+
 # CONSTANTS
 BASE_URL = "https://www.infarmed.pt/web/infarmed/servicos-on-line/pesquisa-do-medicamento"
-
-OUTPUT_DIR = Path.cwd() / ".." / "outputs"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-CSV_PATH = OUTPUT_DIR / "medicamentos_infomed.csv"
-JSON_PATH = OUTPUT_DIR / "medicamentos_infomed.json"
 
 TABLE_SELECTOR = "#form\\:tbl"
 ROW_SELECTOR = "#form\\:tbl_data tr"
@@ -31,7 +27,7 @@ todas_substancias = set()
 
 # return list with the data in the table for a given DCI term 
 # (array of dictionaries with keys: Nregistro, dci, nome_medicamento, forma_farmaceutica, dosagem, tamanho_embalagem, cnpem, pricePVP, pricePVPnotified, priceUtente, pricePensionist, pdf_folheto)
-async def extract_table_from_dci(dci_term: str) -> list[dict]:
+async def extract_table_from_dci(dci_term: str, headless: bool = False) -> list[dict]:
 	def clean_text(value: str | None) -> str:
 		if not value:
 			return ""
@@ -49,7 +45,7 @@ async def extract_table_from_dci(dci_term: str) -> list[dict]:
 	records: list[dict] = []
 
 	async with async_playwright() as p:
-		browser = await p.chromium.launch(headless=False)
+		browser = await p.chromium.launch(headless=headless)
 		context = await browser.new_context(viewport={"width": 1600, "height": 1200})
 		page = await context.new_page()
 		await page.goto(BASE_URL, wait_until="networkidle")
@@ -234,3 +230,88 @@ async def extract_table_from_dci(dci_term: str) -> list[dict]:
 
 	return records
 
+# 
+async def extract_all_tables(dci_terms: Iterable[str], max_workers: int = 4) -> list[dict]:
+	terms = list(dci_terms)
+	if not terms:
+		return []
+
+	max_workers = max(1, min(max_workers, len(terms)))
+	inicio = time.monotonic()
+	last_status_len = 0
+	completed = 0
+	all_records: dict[int, list[dict]] = {}
+
+	def format_seconds(value: float) -> str:
+		total = max(0, int(value))
+		horas, resto = divmod(total, 3600)
+		minutos, segundos = divmod(resto, 60)
+		if horas:
+			return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
+		return f"{minutos:02d}:{segundos:02d}"
+
+	async def worker(terms_queue: asyncio.Queue, results_queue: asyncio.Queue) -> None:
+		while True:
+			item = await terms_queue.get()
+			if item is None:
+				terms_queue.task_done()
+				return
+
+			index, termo = item
+			try:
+				records = await extract_table_from_dci(termo, headless=True)
+			except Exception:
+				records = []
+
+			await results_queue.put((index, termo, records))
+			terms_queue.task_done()
+
+	terms_queue: asyncio.Queue = asyncio.Queue()
+	results_queue: asyncio.Queue = asyncio.Queue()
+
+	for index, termo in enumerate(terms):
+		terms_queue.put_nowait((index, termo))
+
+	for _ in range(max_workers):
+		terms_queue.put_nowait(None)
+
+	tarefas = [asyncio.create_task(worker(terms_queue, results_queue)) for _ in range(max_workers)]
+	total_terms = len(terms)
+
+	while completed < total_terms:
+		index, termo, records = await results_queue.get()
+		all_records[index] = records
+		completed += 1
+
+		decorrido = time.monotonic() - inicio
+		percentagem = (completed / total_terms) * 100
+		media_por_termo = decorrido / completed
+		total_registos = sum(len(valor) for valor in all_records.values())
+
+		try:
+			this_stats = await get_statistics()
+			total_stats = this_stats[1]
+		except Exception:
+			total_stats = 0
+
+		status = (
+			f"[{termo}] "
+			f"DCIs: {completed:5d}/{total_terms} | "
+			f"Concluído: {percentagem:6.2f}% | "
+			f"Registos: {total_registos:5d} | "
+			f"Tempo: {format_seconds(decorrido)} | "
+			f"Estimativa total: {format_seconds(total_terms * media_por_termo)} | "
+			f"Stats Medicamentos: {total_stats:5d}"
+		)
+		padding = max(0, last_status_len - len(status))
+		print(f"\r{status}{' ' * padding}", end="", flush=True)
+		last_status_len = len(status)
+
+	await asyncio.gather(*tarefas)
+	print()
+
+	ordenados: list[dict] = []
+	for index in range(total_terms):
+		ordenados.extend(all_records.get(index, []))
+
+	return ordenados
