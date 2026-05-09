@@ -2,11 +2,8 @@
 import csv
 import json
 import time
-import asyncio
 from pathlib import Path
 from typing import Iterable
-import string
-import itertools
 
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
@@ -113,63 +110,135 @@ async def get_statistics():
     
         
 # EXPORT FUNCTIONS
-def export_dcis(dcis: Iterable[str], filename_prefix: str = "dcis_infomed") -> None:
-	"""Exportar lista de DCIs para JSON e CSV"""
-	dcis_list = sorted(list(set(dcis)))
-	
-	if not dcis_list:
-		raise RuntimeError("Nenhuma DCI foi fornecida para exportar.")
-	
-	csv_path = OUTPUT_DIR / f"{filename_prefix}.csv"
-	json_path = OUTPUT_DIR / f"{filename_prefix}.json"
-	
-	# Exportar para CSV
-	with csv_path.open("w", newline="", encoding="utf-8-sig") as csv_file:
-		writer = csv.writer(csv_file)
-		writer.writerow(["DCI"])
-		for dci in dcis_list:
-			writer.writerow([dci])
-	
-	# Exportar para JSON
-	with json_path.open("w", encoding="utf-8") as json_file:
-		json.dump({
-			"total": len(dcis_list),
-			"dcis": dcis_list,
-			"data_exportacao": time.strftime("%Y-%m-%d %H:%M:%S")
-		}, json_file, ensure_ascii=False, indent=2)
-	
-	print(f"✓ Exportação de DCIs concluída: {len(dcis_list)} substâncias")
-	print(f"  CSV: {csv_path}")
-	print(f"  JSON: {json_path}")
+def export_dcis(dcis: Iterable[str], filename_prefix: str = "dcis_infomed", csv_option: bool = False) -> None:
+    """Exportar lista de DCIs para JSON e CSV"""
+    dcis_list = sorted(list(set(dcis)))
+
+    if not dcis_list:
+        raise RuntimeError("Nenhuma DCI foi fornecida para exportar.")
+
+    csv_path = OUTPUT_DIR / f"{filename_prefix}.csv"
+    json_path = OUTPUT_DIR / f"{filename_prefix}.json"
+
+    # Exportar para CSV
+    if csv_option:
+        with csv_path.open("w", newline="", encoding="utf-8-sig") as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerow(["DCI"])
+            for dci in dcis_list:
+                writer.writerow([dci])
+
+    # Exportar para JSON
+    with json_path.open("w", encoding="utf-8") as json_file:
+        json.dump({
+            "total": len(dcis_list),
+            "dcis": dcis_list,
+            "data_exportacao": time.strftime("%Y-%m-%d %H:%M:%S")
+        }, json_file, ensure_ascii=False, indent=2)
+
+    print(f"✓ Exportação de DCIs concluída: {len(dcis_list)} substâncias")
+    if csv_option:
+        print(f"  CSV: {csv_path}")
+    print(f"  JSON: {json_path}")
+
+def export_tables(records: Iterable[dict], filename_prefix: str = "medicamentos_infomed", csv_option: bool = False) -> None:
+    """Exportar tabelas de medicamentos para JSON e CSV"""
+    records_list = list(records)
+
+    if not records_list:
+        raise RuntimeError("Nenhum medicamento foi extraído para exportar.")
+
+    csv_path = OUTPUT_DIR / f"{filename_prefix}.csv"
+    json_path = OUTPUT_DIR / f"{filename_prefix}.json"
+
+    # Obter nomes de colunas do primeiro registo
+    fieldnames = list(records_list[0].keys())
+
+    # Exportar para CSV
+    if csv_option:
+        with csv_path.open("w", newline="", encoding="utf-8-sig") as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(records_list)
+
+    # Exportar para JSON
+    with json_path.open("w", encoding="utf-8") as json_file:
+        json.dump({
+            "total": len(records_list),
+            "records": records_list,
+            "data_exportacao": time.strftime("%Y-%m-%d %H:%M:%S")
+        }, json_file, ensure_ascii=False, indent=2)
+
+    print(f"✓ Exportação de medicamentos concluída: {len(records_list)} registos")
+    if csv_option:
+        print(f"  CSV: {csv_path}")
+    print(f"  JSON: {json_path}")
 
 
-def export_tables(records: Iterable[dict], filename_prefix: str = "medicamentos_infomed") -> None:
-	"""Exportar tabelas de medicamentos para JSON e CSV"""
-	records_list = list(records)
-	
-	if not records_list:
-		raise RuntimeError("Nenhum medicamento foi extraído para exportar.")
-	
-	csv_path = OUTPUT_DIR / f"{filename_prefix}.csv"
-	json_path = OUTPUT_DIR / f"{filename_prefix}.json"
-	
-	# Obter nomes de colunas do primeiro registo
-	fieldnames = list(records_list[0].keys())
-	
-	# Exportar para CSV
-	with csv_path.open("w", newline="", encoding="utf-8-sig") as csv_file:
-		writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-		writer.writeheader()
-		writer.writerows(records_list)
-	
-	# Exportar para JSON
-	with json_path.open("w", encoding="utf-8") as json_file:
-		json.dump({
-			"total": len(records_list),
-			"records": records_list,
-			"data_exportacao": time.strftime("%Y-%m-%d %H:%M:%S")
-		}, json_file, ensure_ascii=False, indent=2)
-	
-	print(f"✓ Exportação de medicamentos concluída: {len(records_list)} registos")
-	print(f"  CSV: {csv_path}")
-	print(f"  JSON: {json_path}")
+def export_informative_bill_per_dci(records: Iterable[dict], filename_prefix: str = "informative_bill_per_dci", csv_option: bool = False) -> None:
+    """Exportar a lista de resumo do folheto informativo por DCI para JSON e CSV."""
+    records_list = list(records)
+
+    if not records_list:
+        raise RuntimeError("Nenhum resumo de folheto informativo foi fornecido para exportar.")
+
+    csv_path = OUTPUT_DIR / f"{filename_prefix}.csv"
+    json_path = OUTPUT_DIR / f"{filename_prefix}.json"
+
+    flat_rows: list[dict] = []
+    for record in records_list:
+        info_pdf = record.get("info_pdf", {})
+        if isinstance(info_pdf, dict):
+            info_pdf_text = json.dumps(info_pdf, ensure_ascii=False)
+        else:
+            info_pdf_text = str(info_pdf)
+
+        flat_rows.append({
+            "dci": record.get("dci", ""),
+            "medicamento": record.get("medicamento", ""),
+            "pdf_url": record.get("pdf_url", ""),
+            "info_pdf": info_pdf_text,
+        })
+
+    if csv_option:
+        with csv_path.open("w", newline="", encoding="utf-8-sig") as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=["dci", "medicamento", "pdf_url", "info_pdf"])
+            writer.writeheader()
+            writer.writerows(flat_rows)
+
+    with json_path.open("w", encoding="utf-8") as json_file:
+        json.dump({
+            "total": len(records_list),
+            "records": records_list,
+            "data_exportacao": time.strftime("%Y-%m-%d %H:%M:%S")
+        }, json_file, ensure_ascii=False, indent=2)
+
+    print(f"✓ Exportação do folheto informativo concluída: {len(records_list)} registos")
+    if csv_option:
+        print(f"  CSV: {csv_path}")
+    print(f"  JSON: {json_path}")
+    
+    
+# IMPORT FUNCTIONS
+def import_dcis_from_json(json_path: Path = OUTPUT_DIR / "dcis_infomed.json") -> list[str]:
+    """Importar lista de DCIs a partir de um ficheiro JSON exportado."""
+    if not json_path.exists():
+        raise FileNotFoundError(f"O ficheiro {json_path} não foi encontrado.")
+    
+    with json_path.open("r", encoding="utf-8") as json_file:
+        data = json.load(json_file)
+        dcis = data.get("dcis", [])
+        print(f"✓ Importação concluída: {len(dcis)} DCIs carregadas de {json_path}")
+        return dcis
+
+def import_table_from_json(json_path: Path = OUTPUT_DIR / "medicamentos_infomed.json") -> list[dict]:
+    """Importar tabela de medicamentos a partir de um ficheiro JSON exportado."""
+    if not json_path.exists():
+        raise FileNotFoundError(f"O ficheiro {json_path} não foi encontrado.")
+    
+    with json_path.open("r", encoding="utf-8") as json_file:
+        data = json.load(json_file)
+        records = data.get("records", [])
+        print(f"✓ Importação concluída: {len(records)} registos carregados de {json_path}")
+        return records
+    

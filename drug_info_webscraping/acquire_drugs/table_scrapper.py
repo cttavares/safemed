@@ -1,7 +1,6 @@
 # IMPORTS
 import time
 import asyncio
-from pathlib import Path
 from typing import Iterable
 
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
@@ -34,13 +33,48 @@ async def extract_table_from_dci(dci_term: str, headless: bool = False) -> list[
 		return " ".join(value.replace("\xa0", " ").split()).strip()
 
 	def parse_currency(value: str | None) -> float | None:
-		text = clean_text(value).replace("€", "").replace(".", "").replace(",", ".")
-		if not text or text.lower() in {"preço livre", "n/a"}:
-			return None
+		# Normaliza e retorna uma string: "€ X,XX", "preço livre" ou "" quando só existir o cabeçalho
+		import re
+
+		orig = clean_text(value)
+		if not orig:
+			return ""
+		low = orig.lower()
+		if "preço livre" in low or "preco livre" in low:
+			return "preço livre"
+
+		# remover rótulos de coluna caso estejam presentes (ex: "Preço (PVP)")
+		rest = re.sub(r'^(preço\s*\(pvp\)|pvp\s*notificado|preço\s*utente|preço\s*pensionistas)\s*', '', orig, flags=re.IGNORECASE).strip()
+		if not rest:
+			# só havia o cabeçalho
+			return ""
+
+		text_to_search = rest
+
+		# procurar número com separadores possíveis
+		m = re.search(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)", text_to_search)
+		if not m:
+			# tentar extrair após símbolo € como fallback
+			m2 = re.search(r"€\s*([0-9.,]+)", text_to_search)
+			if not m2:
+				# sem número — devolver o texto limpo restante (ex: 'preço livre' já tratado)
+				return rest
+			num_str = m2.group(1)
+		else:
+			num_str = m.group(1)
+
+		# normalizar para float (usar '.' como separador decimal)
+		normalized = num_str.replace('.', '').replace(',', '.')
 		try:
-			return float(text)
-		except ValueError:
-			return None
+			value_f = float(normalized)
+		except Exception:
+			return rest
+
+		# formatar para estilo europeu: milhares com '.' e decimal com ','
+		s = f"{value_f:,.2f}"
+		# trocar separadores (s: en_US style)
+		s = s.replace(',', 'X').replace('.', ',').replace('X', '.')
+		return f"€ {s}"
 
 	records: list[dict] = []
 
@@ -159,7 +193,16 @@ async def extract_table_from_dci(dci_term: str, headless: bool = False) -> list[
 				await browser.close()
 				return records
 
-		# procurar tabela
+			# garantir que a pagina mostra 48 linhas por página (se existir o seletor de paginação)
+			try:
+				await target.evaluate(
+					"sel => { const el = document.querySelector(sel); if (el) { el.value = '48'; el.dispatchEvent(new Event('change')); } }",
+					"select[name='form:tbl_rppDD'], select[id*='rppDD'], select.ui-paginator-rpp-options",
+				)
+			except Exception:
+				pass
+
+			# procurar tabela
 		try:
 			try:
 				await target.wait_for_selector(TABLE_SELECTOR, timeout=8000, state="attached")
@@ -202,7 +245,7 @@ async def extract_table_from_dci(dci_term: str, headless: bool = False) -> list[
 				price_pension = parse_currency(await at_text(".pension-column"))
 
 				comercialized = await at_text(".comerc-column")
-				is_generic = await at_text(".ui-helper-hidden")
+				is_generic = (await at_text(".ui-helper-hidden")) == "GenéricoSim"
 
 				info_el = await row.query_selector(".info-column a[href]")
 				info_url = await info_el.get_attribute("href") if info_el else ""

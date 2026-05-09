@@ -2,13 +2,13 @@
 Script de teste para extrair DCIs, tabelas e exportar para JSON/CSV
 """
 import asyncio
-from table_scrapper import extract_all_tables, export_dcis, export_tables
-
+from table_scrapper import extract_all_tables
+from utils import export_dcis, export_tables
 
 async def main():
     # Lista de DCIs para testar
     dcis = [
-        "ácido acetilsalisílico",
+        "ácido acetilsalicílico",
         "Clorofenamina + Paracetamol",
     ]
     
@@ -21,13 +21,13 @@ async def main():
     
     print(f"\n\n2. Exportando DCIs...\n")
     try:
-        export_dcis(dcis, filename_prefix="dcis_teste")
+        export_dcis(dcis, csv_option=True)
     except Exception as e:
         print(f"✗ Erro ao exportar DCIs: {e}")
     
     print(f"\n3. Exportando tabelas de medicamentos...\n")
     try:
-        export_tables(records, filename_prefix="medicamentos_teste")
+        export_tables(records, csv_option=True)
     except Exception as e:
         print(f"✗ Erro ao exportar tabelas: {e}")
     

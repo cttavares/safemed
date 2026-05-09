@@ -1,0 +1,22 @@
+{
+  "total": 2,
+  "records": [
+    {
+      "dci": "Ácido acetilsalicílico",
+      "medicamento": "Ácido Acetilsalicílico Lumec",
+      "pdf_url": "https://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml;jsessionid=NUvuAbLQV_VNLKXxnzLJ-GQvLbMbDlE6da-KZCTc.fo2",
+      "info_pdf": {
+        "resumo": "{\n  \"dci\": \"Ácido acetilsalicílico\",\n  \"medicamento\": \"Ácido Acetilsalicílico Lumec\",\n  \"indicacoes\": [\n    \"Prevenir ataques cardíacos.\",\n    \"Prevenir acidentes vasculares cerebrais.\",\n    \"Prevenir problemas cardiovasculares em angina.\",\n    \"Pre"
+      }
+    },
+    {
+      "dci": "Clorofenamina + Paracetamol",
+      "medicamento": "Ben-u-gripe",
+      "pdf_url": "https://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml;jsessionid=9F2GHlPHf1tP-kiaHNPvshBdIDSTJRPinefBtVXK.fo2",
+      "info_pdf": {
+        "resumo": "{\n  \"dci\": \"Clorofenamina + Paracetamol\",\n  \"medicamento\": \"Ben-u-gripe\",\n  \"indicacoes\": [\n    \"Tratamento de constipações, rinites, nasofaringites.\",\n    \"Alívio de quadros gripais em adultos e crianças >12 anos.\","
+      }
+    }
+  ],
+  "data_exportacao": "2026-05-09 00:58:16"
+}
