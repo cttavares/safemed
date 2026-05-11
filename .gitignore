@@ -90,3 +90,7 @@ build/web/
 __pycache__/
 *.pyc
 analyze_out.txt
+
+
+# env files
+*.env
