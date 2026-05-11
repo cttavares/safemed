@@ -12,7 +12,7 @@ STATISTICS_URL = "https://extranet.infarmed.pt/INFOMED-fo/"
 BASE_URL = "https://www.infarmed.pt/web/infarmed/servicos-on-line/pesquisa-do-medicamento"
 DCI_IFRAME_SELECTOR = "iframe[src*='pesquisaMedicamento.jsf']"
 
-OUTPUT_DIR = Path.cwd() / ".." / "outputs"
+OUTPUT_DIR = Path(__file__).parent.parent / "outputs"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # VARIABLES
