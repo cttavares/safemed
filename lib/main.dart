@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:safemed/services/alert_store.dart';
 import 'package:safemed/services/app_settings_store.dart';
+import 'package:safemed/services/infarmed_medication_service.dart';
 import 'package:safemed/services/medication_alarm_scheduler.dart';
 import 'package:safemed/services/medication_history_store.dart';
 import 'package:safemed/services/plan_store.dart';
@@ -16,6 +17,9 @@ Future<void> main() async {
     AlertStore.instance.load(),
     MedicationHistoryStore.instance.load(),
     AppSettingsStore.instance.load(),
+    // Load Infarmed medication database from bundled JSON asset.
+    // Fails gracefully if the scraper hasn't run yet (empty asset).
+    infarmedMedicationService.init(),
   ]);
   await MedicationHistoryStore.instance.syncFromPlans(PlanStore.instance.plans);
   if (kDebugMode) {

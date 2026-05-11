@@ -72,6 +72,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/yolo11s/tflite/
+    - assets/medications_infarmed.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:
