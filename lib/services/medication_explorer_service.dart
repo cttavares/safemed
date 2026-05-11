@@ -1,6 +1,7 @@
 import '../data/medications_pt_br.dart' as br;
 import '../data/medications_pt_pt.dart' as pt;
 import '../models/medication_match.dart';
+import 'infarmed_medication_service.dart';
 
 class MedicationExplorerService {
   final List<_MedicationRecord> _records;
@@ -16,6 +17,7 @@ class MedicationExplorerService {
 
     final matches = <String, MedicationMatch>{};
 
+    // ── Static PT/BR dictionary ───────────────────────────────────────────
     for (final record in _records) {
       if (record.matches(normalized)) {
         matches[record.name] = MedicationMatch(
@@ -23,6 +25,21 @@ class MedicationExplorerService {
           aliases: record.aliases,
           reason: 'Matched by text recognition.',
           source: source,
+        );
+      }
+    }
+
+    // ── Infarmed live database ────────────────────────────────────────────
+    if (infarmedMedicationService.isInitialized) {
+      for (final med in infarmedMedicationService.search(text)) {
+        matches.putIfAbsent(
+          med.nomeComercial,
+          () => MedicationMatch(
+            name: med.nomeComercial,
+            aliases: [med.substanciaAtiva],
+            reason: 'Correspondência na base de dados Infarmed.',
+            source: 'infarmed',
+          ),
         );
       }
     }
