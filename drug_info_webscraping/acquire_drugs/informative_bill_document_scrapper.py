@@ -132,29 +132,19 @@ async def _ask_gemini_for_summary(dci: str, medicine_name: str, pdf_text: str) -
 
 	texto_base = pdf_text[:PDF_TEXT_LIMIT]
 	prompt = (
-		"Atua como um assistente farmacêutico especializado em extração de dados. O teu objetivo é ler o Folheto Informativo (FI) em anexo e extrair informação GENERALIZADA sobre a Substância Ativa (DCI).\n\n"
-		"Regras de extração:\n"
-		"1. Usa apenas o texto fornecido.\n"
-		"2. Resume as indicações em frases curtas (máximo 10 palavras por item).\n"
-		"3. Agrupa os efeitos indesejáveis por frequência (Frequentes, Pouco Frequentes, Raros).\n"
-		"4. O campo \"modo_conservacao\" deve ser uma instrução direta.\n\n"
-		"Responde EXCLUSIVAMENTE em formato JSON com esta estrutura:\n"
+		"Extrai informação do Folheto Informativo abaixo e responde APENAS em JSON:\n\n"
 		"{\n"
-		'  "dci": "Nome da Substância",\n'
+		'  "dci": "Substância Ativa",\n'
 		'  "medicamento": "Nome do Medicamento",\n'
-		'  "indicacoes": ["item1", "item2"],\n'
-		'  "efeitos_indesejaveis": {\n'
-		'    "frequentes": ["efeito1"],\n'
-		'    "outros": ["efeito2"]\n'
-		"  },\n"
-		'  "conservacao": "instrução curta",\n'
-		'  "aviso_critico": "advertência principal sobre fígado/álcool"\n'
+		'  "indicacoes": ["indicação 1", "indicação 2"],\n'
+		'  "efeitos_indesejaveis": {"frequentes": ["efeito1"], "outros": ["efeito2"]},\n'
+		'  "conservacao": "como conservar",\n'
+		'  "aviso_critico": "aviso importante"\n'
 		"}\n\n"
-		"TEXTO DO FOLHETO INFORMATIVO:\n"
-		f"[texto]\n\n"
-		f"DCI: {dci}\n"
-		f"Medicamento: {medicine_name}\n\n"
-		f"{texto_base}"
+		"TEXTO DO FOLHETO:\n"
+		f"{texto_base}\n\n"
+		f"DCI identificada: {dci}\n"
+		f"Medicamento: {medicine_name}"
 	)
 
 	body = {
@@ -167,7 +157,7 @@ async def _ask_gemini_for_summary(dci: str, medicine_name: str, pdf_text: str) -
 		"generationConfig": {
 			"temperature": 0.2,
 			"topP": 0.9,
-			"maxOutputTokens": 2048,
+			"maxOutputTokens": 4096,
 		},
 	}
 
@@ -194,9 +184,13 @@ async def _ask_gemini_for_summary(dci: str, medicine_name: str, pdf_text: str) -
 	await asyncio.sleep(0.5)
 	
 	try:
-		return json.loads(text_response)
-	except Exception:
-		return {"resumo": text_response}
+		result = json.loads(text_response)
+		# Validar se temos os campos esperados, se não, retornar resumo
+		if not all(key in result for key in ["dci", "medicamento", "indicacoes"]):
+			return {"resumo": f"JSON incompleto do Gemini: {text_response[:500]}..."}
+		return result
+	except json.JSONDecodeError:
+		return {"resumo": f"JSON inválido do Gemini: {text_response[:500]}..."}
 
 
 async def extract_informative_bill_pdf_text_by_link_from_table(records: Iterable[dict], headless: bool = True, max_workers: int = 4) -> list[dict]:
