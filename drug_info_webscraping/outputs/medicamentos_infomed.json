@@ -13,7 +13,7 @@
       "pricePVPnotified": "",
       "priceUtente": "€ 2,51",
       "pricePensionist": "€ 2,51",
-      "commercialized": "Comercializado",
+      "commercialized": "Comerc.Comercializado",
       "isGeneric": false,
       "infoUrl": "http://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml?med_guid=fb2fa2737541242de050a8c034295d97"
     },
@@ -317,7 +317,7 @@
       "pricePVPnotified": "",
       "priceUtente": "",
       "pricePensionist": "",
-      "commercialized": "Comercializado",
+      "commercialized": "Comerc.Comercializado",
       "isGeneric": false,
       "infoUrl": "http://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml?med_guid=0cd940cfe9a24167e060a8c034297c6a"
     },
@@ -370,5 +370,5 @@
       "infoUrl": "http://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml?med_guid=e606724892cd1c66e050a8c0342906df"
     }
   ],
-  "data_exportacao": "2026-05-08 18:29:08"
+  "data_exportacao": "2026-05-11 23:34:33"
 }

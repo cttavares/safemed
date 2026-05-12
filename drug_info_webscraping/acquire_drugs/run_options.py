@@ -1,3 +1,5 @@
+# IMPORTS
+
 try:
     from .dci_scrapper import (
         get_statistics,
@@ -43,6 +45,10 @@ except Exception:
     )
     from flutter_exporter import export_to_flutter
 
+# CONSTANTS
+CSV_EXPORT_OPTION = True
+
+# MAIN MENU AND OPTIONS
 
 def read_choice(prompt: str, valid_options: set[str]) -> str:
     while True:
@@ -91,6 +97,9 @@ async def main_menu():
             return
 
 async def protocol_menu():
+    dcis = []
+    records = []
+    
     while True:
         print(f"\n{'='*50}")
         print(f"Passo 1. Adquirir DCIs do Infomed e exportar (dcis_infomed.json)")
@@ -105,14 +114,17 @@ async def protocol_menu():
             dcis = await extract_all_dci()
             print(f"\n  -> {len(dcis)} DCIs encontradas.")
             try:
-                export_dcis(dcis, csv_option=True)
+                export_dcis(dcis, csv_option=CSV_EXPORT_OPTION)
             except Exception as e:
                 print(f"  [ERRO] Exportação de DCIs: {e}")
 
         elif choice == "2":
             print(f"\n[PASSO 2] A carregar DCIs do ficheiro exportado...")
             try:
-                dcis = import_dcis_from_json(OUTPUT_DIR / "dcis_infomed.json")
+                if not dcis:
+                    dcis = import_dcis_from_json(OUTPUT_DIR / "dcis_infomed.json")
+                else:
+                    print("  -> DCIs já carregadas na memória, a usar dados atuais sem ler do ficheiro.")
             except FileNotFoundError:
                 print("  [AVISO] Ficheiro dcis_infomed.json não encontrado. Executa o Passo 1 primeiro.")
                 continue
@@ -124,14 +136,17 @@ async def protocol_menu():
             records = await extract_all_tables(dcis, max_workers=6)
             print(f"\n  -> {len(records)} registos extraídos.")
             try:
-                export_tables(records, csv_option=True)
+                export_tables(records, csv_option=CSV_EXPORT_OPTION)
             except Exception as e:
                 print(f"  [ERRO] Exportação de tabelas: {e}")
 
         elif choice == "3":
             print(f"\n[PASSO 3] A carregar tabela de medicamentos do ficheiro exportado...")
             try:
-                table_records = import_table_from_json(OUTPUT_DIR / "medicamentos_infomed.json")
+                if not records:
+                    table_records = import_table_from_json(OUTPUT_DIR / "medicamentos_infomed.json")
+                else:
+                    print("  -> Tabelas já carregadas na memória, a usar dados atuais sem ler do ficheiro.")
             except FileNotFoundError:
                 print("  [AVISO] Ficheiro medicamentos_infomed.json não encontrado. Executa o Passo 2 primeiro.")
                 continue
@@ -150,7 +165,7 @@ async def protocol_menu():
                 export_informative_bill_per_dci(
                     fi_records,
                     filename_prefix="informative_bill_per_dci",
-                    csv_option=True,
+                    csv_option=CSV_EXPORT_OPTION
                 )
             except Exception as e:
                 print(f"  [ERRO] Exportação FI: {e}")
@@ -190,7 +205,7 @@ async def test_menu():
     while True:
         print(f"1. Testar Autocomplete de DCIs com combinação de 3 letras à escolha (ex: 'aci')")
         print(f"2. Adquirir dados da tabela para um DCI específico (ex: 'Ácido acetilsalicílico')")
-        print(f"3. Adquirir PDF Folheto Informativo para um medicamento específico (ex: 'Ácido Acetilsalicílico Lumec')")
+        print(f"3. Adquirir PDF Folheto Informativo para o primeiro medicamento de um DCI específico (ex: 'Ácido Acetilsalicílico Lumec')")
         print(f"0. Voltar ao menu principal")
         choice = read_choice("\nEscolha uma opção: ", {"0", "1", "2", "3"})
 
@@ -214,7 +229,16 @@ async def test_menu():
 
         if choice == "3":
             print(f"ADQUIRIR PDF FOLHETO INFORMATIVO...\n")
-            print(f"TODO: Implementar esta funcionalidade")
+            term = choose_example_or_custom("Ácido Acetilsalicílico")
+            records = await extract_table_from_dci(term)
+            if not records:
+                print(f"Nenhum medicamento encontrado para '{term}' na tabela. Teste não pode continuar.")
+                return
+            
+            fi_records = await extract_informative_bill_pdf_text_by_link_from_table(records, headless = False, max_workers=1)
+            print(f"Total de resumos gerados para '{term}': {len(fi_records)}")
+            for rec in fi_records:
+                print(rec)
             return
 
         if choice == "0":
