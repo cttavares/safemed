@@ -103,15 +103,15 @@ async def protocol_menu():
     while True:
         print(f"\n{'='*50}")
         print(f"Passo 1. Adquirir DCIs do Infomed e exportar (dcis_infomed.json)")
-        print(f"Passo 2. Adquirir tabela de medicamentos para todos os DCIs")
-        print(f"Passo 3. Adquirir PDFs Folheto Informativo e resumir com Gemini")
+        print(f"Passo 2. Adquirir tabela de medicamentos para todos os DCIs e exportar (medicamentos_infomed.json)")
+        print(f"Passo 3. Adquirir PDFs Folheto Informativo e resumir com Gemini e exportar (informative_bill_per_dci.json)")
         print(f"Passo 4. Exportar para Flutter (assets/medications_infarmed.json)")
         print(f"0. Voltar ao menu principal")
         choice = read_choice("\nEscolha uma opção: ", {"0", "1", "2", "3", "4"})
 
         if choice == "1":
             print(f"\n[PASSO 1] A adquirir todas as DCIs...\n")
-            dcis = await extract_all_dci()
+            dcis = await extract_all_dci(max_workers=6)
             print(f"\n  -> {len(dcis)} DCIs encontradas.")
             try:
                 export_dcis(dcis, csv_option=CSV_EXPORT_OPTION)

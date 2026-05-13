@@ -14,9 +14,57 @@ DCI_IFRAME_SELECTOR = "iframe[src*='pesquisaMedicamento.jsf']"
 
 OUTPUT_DIR = Path(__file__).parent.parent / "outputs"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+DCI_CHECKPOINT_PATH = OUTPUT_DIR / "dci_extraction_checkpoint.json"
 
 # VARIABLES
 statistics_infomed = [0, 0, 0, ""] # [nDCIs, nMedicamentos, nApresentações, lastUpdate]
+
+
+def write_dci_checkpoint(last_completed_index: int, last_completed_term: str, total_processed: int | None = None) -> None:
+    payload = {
+        "last_completed_index": last_completed_index,
+        "last_completed_term": last_completed_term,
+        "total_processed": total_processed if total_processed is not None else last_completed_index + 1,
+        "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    with DCI_CHECKPOINT_PATH.open("w", encoding="utf-8") as checkpoint_file:
+        json.dump(payload, checkpoint_file, ensure_ascii=False, indent=2)
+
+
+def read_dci_checkpoint() -> dict | None:
+    if not DCI_CHECKPOINT_PATH.exists():
+        return None
+
+    try:
+        with DCI_CHECKPOINT_PATH.open("r", encoding="utf-8") as checkpoint_file:
+            data = json.load(checkpoint_file)
+    except Exception:
+        return None
+
+    if not isinstance(data, dict):
+        return None
+
+    return data
+
+
+def delete_dci_checkpoint() -> None:
+    if DCI_CHECKPOINT_PATH.exists():
+        DCI_CHECKPOINT_PATH.unlink()
+
+
+def save_dcis_json(dcis: Iterable[str], filename_prefix: str = "dcis_infomed_incomplete") -> Path:
+    dcis_list = sorted(list(set(dcis)))
+    json_path = OUTPUT_DIR / f"{filename_prefix}.json"
+
+    with json_path.open("w", encoding="utf-8") as json_file:
+        json.dump({
+            "total": len(dcis_list),
+            "dcis": dcis_list,
+            "data_exportacao": time.strftime("%Y-%m-%d %H:%M:%S")
+        }, json_file, ensure_ascii=False, indent=2)
+
+    return json_path
 
 # GET IFRAME NAME
 
@@ -118,7 +166,7 @@ def export_dcis(dcis: Iterable[str], filename_prefix: str = "dcis_infomed", csv_
         raise RuntimeError("Nenhuma DCI foi fornecida para exportar.")
 
     csv_path = OUTPUT_DIR / f"{filename_prefix}.csv"
-    json_path = OUTPUT_DIR / f"{filename_prefix}.json"
+    json_path = save_dcis_json(dcis_list, filename_prefix=filename_prefix)
 
     # Exportar para CSV
     if csv_option:
@@ -127,14 +175,6 @@ def export_dcis(dcis: Iterable[str], filename_prefix: str = "dcis_infomed", csv_
             writer.writerow(["DCI"])
             for dci in dcis_list:
                 writer.writerow([dci])
-
-    # Exportar para JSON
-    with json_path.open("w", encoding="utf-8") as json_file:
-        json.dump({
-            "total": len(dcis_list),
-            "dcis": dcis_list,
-            "data_exportacao": time.strftime("%Y-%m-%d %H:%M:%S")
-        }, json_file, ensure_ascii=False, indent=2)
 
     print(f"✓ Exportação de DCIs concluída: {len(dcis_list)} substâncias")
     if csv_option:

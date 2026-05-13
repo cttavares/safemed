@@ -20,7 +20,7 @@ from roboflow import Roboflow
 rf = Roboflow(api_key="Jbk5UxSuXrhZbfmGrZJn")
 project = rf.workspace("luss-workspace-u3jzw").project("safemed_med_recognition-zcroy")
 
-dataset = project.version(2).download("yolov8", location=str(DATASETS_DIR / "current"))
+dataset = project.version(6).download("yolov8", location=str(DATASETS_DIR / "current"))
 data_yaml = Path(dataset.location) / "data.yaml"
 
 model.train(
