@@ -66,6 +66,8 @@ class Profile {
   final bool hepaticDisease;
   final bool diabetes;
   final bool hypertension;
+  final bool asma;
+  final bool dopc;
   final String healthIssues;
   final List<String> allergies;
   final List<String> medicalRestrictions;
@@ -84,6 +86,8 @@ class Profile {
     this.hepaticDisease = false,
     this.diabetes = false,
     this.hypertension = false,
+    this.asma = false,
+    this.dopc = false,
     required this.healthIssues,
     this.allergies = const [],
     this.medicalRestrictions = const [],
@@ -102,6 +106,8 @@ class Profile {
     bool? hepaticDisease,
     bool? diabetes,
     bool? hypertension,
+    bool? asma,
+    bool? dopc,
     String? healthIssues,
     List<String>? allergies,
     List<String>? medicalRestrictions,
@@ -121,6 +127,8 @@ class Profile {
       hepaticDisease: hepaticDisease ?? this.hepaticDisease,
       diabetes: diabetes ?? this.diabetes,
       hypertension: hypertension ?? this.hypertension,
+      asma: asma ?? this.asma,
+      dopc: dopc ?? this.dopc,
       healthIssues: healthIssues ?? this.healthIssues,
       allergies: allergies ?? this.allergies,
       medicalRestrictions: medicalRestrictions ?? this.medicalRestrictions,
@@ -150,6 +158,8 @@ class Profile {
       hepaticDisease: json['hepaticDisease'] as bool? ?? false,
       diabetes: json['diabetes'] as bool? ?? false,
       hypertension: json['hypertension'] as bool? ?? false,
+      asma: json['asma'] as bool? ?? false,
+      dopc: json['dopc'] as bool? ?? false,
       healthIssues: json['healthIssues']?.toString() ?? '',
       allergies:
           (json['allergies'] as List<dynamic>?)
@@ -181,6 +191,8 @@ class Profile {
       'hepaticDisease': hepaticDisease,
       'diabetes': diabetes,
       'hypertension': hypertension,
+      'asma': asma,
+      'dopc': dopc,
       'healthIssues': healthIssues,
       'allergies': allergies,
       'medicalRestrictions': medicalRestrictions,

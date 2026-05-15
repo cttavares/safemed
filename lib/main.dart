@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:safemed/services/alert_store.dart';
 import 'package:safemed/services/app_settings_store.dart';
@@ -22,9 +21,6 @@ Future<void> main() async {
     infarmedMedicationService.init(),
   ]);
   await MedicationHistoryStore.instance.syncFromPlans(PlanStore.instance.plans);
-  if (kDebugMode) {
-    await _seedDemoData();
-  }
   await MedicationAlarmScheduler.instance.syncWithPlans(
     plans: PlanStore.instance.plans,
     profiles: ProfileStore.instance.profiles,
@@ -42,17 +38,5 @@ class SafeMedApp extends StatelessWidget {
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.teal),
       home: const HomeScreen(),
     );
-  }
-}
-
-Future<void> _seedDemoData() async {
-  final profileStore = ProfileStore.instance;
-  final planStore = PlanStore.instance;
-  if (profileStore.profiles.isEmpty) {
-    await profileStore.seedDemoData();
-  }
-  if (planStore.plans.isEmpty) {
-    final ids = profileStore.profiles.map((p) => p.id).toList();
-    await planStore.seedDemoData(ids);
   }
 }

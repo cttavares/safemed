@@ -85,24 +85,33 @@ class MedicationAlarmScheduler {
 
     for (final alarm in upcoming) {
       final id = _notificationIdFor(alarm.uniqueKey);
-      await _notifications.zonedSchedule(
-        id,
-        alarm.title,
-        alarm.body,
-        tz.TZDateTime.from(alarm.scheduledAt, tz.local),
-        _detailsForAlarm(settings: settings, profile: alarm.profile),
-        androidScheduleMode: AndroidScheduleMode.alarmClock,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        payload: alarm.uniqueKey,
-      );
-      // Also schedule a direct AlarmManager alarm so AlarmActivity fires
-      // even when the app is in the foreground.
+      // Resolve the custom sound URI for this alarm's profile
+      final resolvedCustomUri =
+          alarm.profile.customAlarmUri ?? settings.customAlarmUri;
+      final useCustomSound = settings.alarmsEnabled &&
+          resolvedCustomUri != null &&
+          resolvedCustomUri.trim().isNotEmpty;
+      // iOS uses flutter_local_notifications; Android uses the direct
+      // AlarmManager path (AlarmBroadcastReceiver) to avoid double-posting.
+      if (!Platform.isAndroid) {
+        await _notifications.zonedSchedule(
+          id,
+          alarm.title,
+          alarm.body,
+          tz.TZDateTime.from(alarm.scheduledAt, tz.local),
+          _detailsForAlarm(settings: settings, profile: alarm.profile),
+          androidScheduleMode: AndroidScheduleMode.alarmClock,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: alarm.uniqueKey,
+        );
+      }
       await _scheduleAlarmManagerAlarm(
         id: id,
         title: alarm.title,
         body: alarm.body,
         triggerAtMillis: alarm.scheduledAt.millisecondsSinceEpoch,
+        soundUri: useCustomSound ? resolvedCustomUri : null,
       );
     }
   }
@@ -120,6 +129,7 @@ class MedicationAlarmScheduler {
     required String title,
     required String body,
     required int triggerAtMillis,
+    String? soundUri,
   }) async {
     if (!Platform.isAndroid) return;
     try {
@@ -128,6 +138,7 @@ class MedicationAlarmScheduler {
         'title': title,
         'body': body,
         'triggerAtMillis': triggerAtMillis,
+        if (soundUri != null) 'soundUri': soundUri,
       });
       _scheduledAlarmIds.add(id);
     } catch (_) {
@@ -137,11 +148,9 @@ class MedicationAlarmScheduler {
 
   Future<void> _cancelAllAlarmManagerAlarms() async {
     if (!Platform.isAndroid) return;
-    for (final id in _scheduledAlarmIds) {
-      try {
-        await _alarmChannel.invokeMethod<void>('cancelAlarm', {'id': id});
-      } catch (_) {}
-    }
+    try {
+      await _alarmChannel.invokeMethod<void>('clearAllAlarms');
+    } catch (_) {}
     _scheduledAlarmIds.clear();
   }
 

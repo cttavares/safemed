@@ -170,19 +170,79 @@ class _MedicationPickerDialogState extends State<MedicationPickerDialog> {
                               interactionAlerts.every(
                                 (a) => a.level == _RiskLevel.low,
                               );
-                          final lowRiskContext =
-                              !hasAllergyRisk &&
-                              !showPregnancyRisk &&
-                              !hasHighInteraction &&
-                              !hasMediumInteraction;
+                          // Age check
+                          final hasAgeRisk =
+                              profile != null &&
+                              med.idadeMinima != null &&
+                              !med.isSafeForAge(profile.age);
+                          // Elderly (Beers Criteria) check
+                          final elderlyWarnings =
+                              profile?.category == ProfileType.elderly
+                              ? findElderlyRisks(med.substanciaAtiva)
+                              : const <String>[];
+                          final hasElderlyWarning = elderlyWarnings.isNotEmpty;
+                          // Prescription-only flag
+                          final isPrescriptionOnly = med.sujeitoReceitaMedica;
+                          // Build compact risk dots for the list view
+                          final riskDots = <Widget>[];
+                          if (hasAllergyRisk ||
+                              hasConditionRisk ||
+                              hasHighInteraction ||
+                              hasAgeRisk) {
+                            riskDots.add(
+                              const _RiskDot(
+                                color: Colors.red,
+                                tooltip: 'Alerta vermelho — toque para detalhes',
+                              ),
+                            );
+                          } else if (hasMediumInteraction ||
+                              hasRestrictionWarning) {
+                            riskDots.add(
+                              const _RiskDot(
+                                color: Colors.amber,
+                                tooltip: 'Aviso — toque para detalhes',
+                              ),
+                            );
+                          } else if (showPregnancyRisk) {
+                            riskDots.add(
+                              _RiskDot(
+                                color: _fdaColor(pregRisk),
+                                tooltip:
+                                    'Risco gravidez FDA ${pregRisk.name} — toque para detalhes',
+                              ),
+                            );
+                          } else if (hasLowOnly) {
+                            riskDots.add(
+                              const _RiskDot(
+                                color: Colors.blue,
+                                tooltip:
+                                    'Interação de baixo risco — toque para detalhes',
+                              ),
+                            );
+                          }
+                          if (hasElderlyWarning) {
+                            riskDots.add(
+                              const _RiskDot(
+                                color: Color(0xFF7B1FA2), // purple
+                                tooltip:
+                                    'Atenção em idosos (Beers) — toque para detalhes',
+                              ),
+                            );
+                          }
+                          if (isPrescriptionOnly) {
+                            riskDots.add(
+                              const _RiskDot(
+                                color: Color(0xFFE65100), // deep orange
+                                tooltip: 'Requer receita médica',
+                              ),
+                            );
+                          }
 
                           return ListTile(
-                            leading: hasAllergyRisk || hasConditionRisk
-                                ? const Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: Colors.red,
-                                  )
-                                : hasHighInteraction
+                            leading: hasAllergyRisk ||
+                                    hasConditionRisk ||
+                                    hasAgeRisk ||
+                                    hasHighInteraction
                                 ? const Icon(
                                     Icons.warning_amber_rounded,
                                     color: Colors.red,
@@ -202,71 +262,32 @@ class _MedicationPickerDialogState extends State<MedicationPickerDialog> {
                                     Icons.info_outline,
                                     color: Colors.amber,
                                   )
+                                : isPrescriptionOnly
+                                ? const Icon(
+                                    Icons.receipt_long,
+                                    color: Color(0xFFE65100),
+                                  )
                                 : const Icon(
                                     Icons.check_circle_outline,
                                     color: Colors.green,
                                   ),
-                            title: Text(med.nomeComercial),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            title: Row(
                               children: [
-                                Text(
-                                  '${med.substanciaAtiva} · ${med.dosagem}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                Expanded(
+                                  child: Text(
+                                    med.nomeComercial,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: [
-                                    if (hasAllergyRisk)
-                                      _RiskChip(
-                                        label: 'Alergia (alto)',
-                                        bg: Colors.red.shade50,
-                                        fg: Colors.red.shade900,
-                                      ),
-                                    if (hasConditionRisk)
-                                      _RiskChip(
-                                        label: 'Condição (alto)',
-                                        bg: Colors.red.shade50,
-                                        fg: Colors.red.shade900,
-                                      ),
-                                    if (hasHighInteraction)
-                                      _RiskChip(
-                                        label: 'Interacao (alto)',
-                                        bg: Colors.red.shade50,
-                                        fg: Colors.red.shade900,
-                                      ),
-                                    if (hasMediumInteraction)
-                                      _RiskChip(
-                                        label: 'Interacao (medio)',
-                                        bg: Colors.amber.shade50,
-                                        fg: Colors.amber.shade900,
-                                      ),
-                                    if (hasRestrictionWarning)
-                                      _RiskChip(
-                                        label: 'Restricao (aviso)',
-                                        bg: Colors.amber.shade50,
-                                        fg: Colors.amber.shade900,
-                                      ),
-                                    if (showPregnancyRisk)
-                                      _RiskChip(
-                                        label: 'FDA ${pregRisk.name}',
-                                        bg: _fdaColor(
-                                          pregRisk,
-                                        ).withValues(alpha: 0.12),
-                                        fg: _fdaColor(pregRisk),
-                                      ),
-                                    if (lowRiskContext || hasLowOnly)
-                                      _RiskChip(
-                                        label: 'Risco baixo',
-                                        bg: Colors.green.shade50,
-                                        fg: Colors.green.shade900,
-                                      ),
-                                  ],
-                                ),
+                                if (riskDots.isNotEmpty) ...
+                                  riskDots,
                               ],
+                            ),
+                            subtitle: Text(
+                              '${med.substanciaAtiva} · ${med.dosagem}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             trailing: Chip(
                               label: Text(med.formaFarmaceutica),
@@ -425,12 +446,28 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
     final hasMediumInteraction = widget.interactionAlerts.any(
       (a) => a.level == _RiskLevel.medium,
     );
+    // Age restriction
+    final hasAgeRisk =
+        profile != null &&
+        widget.medication.idadeMinima != null &&
+        !widget.medication.isSafeForAge(profile.age);
+    // Elderly Beers Criteria
+    final elderlyWarnings =
+        profile?.category == ProfileType.elderly
+        ? findElderlyRisks(widget.medication.substanciaAtiva)
+        : const <String>[];
+    final hasElderlyWarning = elderlyWarnings.isNotEmpty;
+    // Prescription-only
+    final isPrescriptionOnly = widget.medication.sujeitoReceitaMedica;
     final hasAnyRisk =
         hasAllergyRisk ||
         hasConditionRisk ||
         isPregnantProfile ||
         hasAnyInteraction ||
-        hasRestrictionWarning;
+        hasRestrictionWarning ||
+        hasAgeRisk ||
+        hasElderlyWarning ||
+        isPrescriptionOnly;
 
     return Dialog(
       child: SingleChildScrollView(
@@ -457,6 +494,24 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
                   ),
                   child: Text(
                     'ALERTA VERMELHO: o utilizador nao pode tomar este medicamento devido a alergia ${allergyMatches.join(', ')}.',
+                    style: TextStyle(
+                      color: Colors.red.shade900,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              if (hasAgeRisk)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    border: Border.all(color: Colors.red.shade400),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'ALERTA VERMELHO: este medicamento nao é recomendado para idade inferior a ${widget.medication.idadeMinima} anos (perfil: ${profile.age} anos).',
                     style: TextStyle(
                       color: Colors.red.shade900,
                       fontWeight: FontWeight.w700,
@@ -553,6 +608,69 @@ class _DosageAndTimesDialogState extends State<_DosageAndTimesDialog> {
                       color: _fdaColor(pregnancyRisk),
                       fontWeight: FontWeight.w700,
                     ),
+                  ),
+                ),
+              if (hasElderlyWarning)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3E5F5),
+                    border: Border.all(color: const Color(0xFF7B1FA2)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'AVISO PARA IDOSOS (Critérios de Beers):',
+                        style: TextStyle(
+                          color: Color(0xFF4A148C),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      ...elderlyWarnings.map(
+                        (msg) => Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '• $msg',
+                            style: const TextStyle(color: Color(0xFF4A148C)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (isPrescriptionOnly)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3E0),
+                    border: Border.all(color: const Color(0xFFE65100)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.receipt_long,
+                        color: Color(0xFFE65100),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'RECEITA MÉDICA OBRIGATÓRIA: este medicamento só pode ser dispensado mediante apresentação de receita médica válida.',
+                          style: TextStyle(
+                            color: Color(0xFFBF360C),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               if (!hasAnyRisk)
@@ -719,25 +837,27 @@ class _InteractionAlert {
   const _InteractionAlert({required this.level, required this.message});
 }
 
-class _RiskChip extends StatelessWidget {
-  final String label;
-  final Color bg;
-  final Color fg;
+/// A compact colored dot badge used in the medication list to signal risk level
+/// without consuming extra vertical space. Full warning details are shown in
+/// the detail dialog when the user taps the list tile.
+class _RiskDot extends StatelessWidget {
+  final Color color;
+  final String tooltip;
 
-  const _RiskChip({required this.label, required this.bg, required this.fg});
+  const _RiskDot({required this.color, required this.tooltip});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: fg.withValues(alpha: 0.45)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w700),
+    return Tooltip(
+      message: tooltip,
+      child: Container(
+        width: 10,
+        height: 10,
+        margin: const EdgeInsets.only(left: 4),
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+        ),
       ),
     );
   }
@@ -850,9 +970,57 @@ List<String> _buildConditionMatches(Profile profile, Medication medication) {
       contraindications.contains(PathologyIds.hipertensao)) {
     matches.add('Hipertensão');
   }
+  if (profile.asma && contraindications.contains(PathologyIds.asma)) {
+    matches.add('Asma');
+  }
+  if (profile.dopc && contraindications.contains(PathologyIds.dopc)) {
+    matches.add('DPOC');
+  }
+
+  // Parse healthIssues free text for additional pathology matches
+  if (profile.healthIssues.isNotEmpty) {
+    final parsedPathologies = parseHealthIssuesConditions(profile.healthIssues);
+    for (final pathologyId in parsedPathologies) {
+      if (contraindications.contains(pathologyId)) {
+        final label = _pathologyLabel(pathologyId);
+        if (!matches.contains(label)) {
+          matches.add(label);
+        }
+      }
+    }
+  }
 
   return matches;
 }
+
+String _pathologyLabel(String pathologyId) {
+  switch (pathologyId) {
+    case PathologyIds.insuficienciaRenal:
+      return 'Insuficiência renal (histórico clínico)';
+    case PathologyIds.insuficienciaHepatica:
+      return 'Insuficiência hepática (histórico clínico)';
+    case PathologyIds.diabetes:
+      return 'Diabetes (histórico clínico)';
+    case PathologyIds.hipertensao:
+      return 'Hipertensão (histórico clínico)';
+    case PathologyIds.asma:
+      return 'Asma (histórico clínico)';
+    case PathologyIds.dopc:
+      return 'DPOC (histórico clínico)';
+    case PathologyIds.ulceraGastrica:
+      return 'Úlcera gástrica (histórico clínico)';
+    case PathologyIds.arritmia:
+      return 'Arritmia (histórico clínico)';
+    case PathologyIds.insuficienciaCardiaca:
+      return 'Insuficiência cardíaca (histórico clínico)';
+    case PathologyIds.anemia:
+      return 'Anemia (histórico clínico)';
+    default:
+      return pathologyId;
+  }
+}
+
+
 
 List<String> _buildRestrictionMatches(Profile profile, Medication medication) {
   final matches = <String>[];
