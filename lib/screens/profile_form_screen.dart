@@ -33,6 +33,8 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   bool _hepaticDisease = false;
   bool _diabetes = false;
   bool _hypertension = false;
+  bool _asma = false;
+  bool _dopc = false;
   List<String> _allergies = [];
   List<String> _medicalRestrictions = [];
   ProfileType _category = ProfileType.adult;
@@ -54,6 +56,8 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
       _hepaticDisease = profile.hepaticDisease;
       _diabetes = profile.diabetes;
       _hypertension = profile.hypertension;
+      _asma = profile.asma;
+      _dopc = profile.dopc;
       _allergies = List.from(profile.allergies);
       _medicalRestrictions = List.from(profile.medicalRestrictions);
       _category = profile.category;
@@ -186,49 +190,27 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
               }
             },
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'Alarm tone for this profile',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _alarmTone,
-            decoration: const InputDecoration(
-              labelText: 'Tone',
-              border: OutlineInputBorder(),
+          if (defaultTargetPlatform == TargetPlatform.android) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Custom alarm sound',
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
-            items: _toneOptions()
-                .map(
-                  (option) => DropdownMenuItem(
-                    value: option.value,
-                    child: Text(option.label),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) async {
-              if (value == null) {
-                return;
-              }
-              setState(() {
-                _alarmTone = value;
-                if (_alarmTone != 'custom') {
-                  _customAlarmUri = null;
-                }
-              });
-            },
-          ),
-          const SizedBox(height: 8),
-          if (_alarmTone == 'custom' && defaultTargetPlatform == TargetPlatform.android) ...[
+            const SizedBox(height: 4),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.music_note),
+              leading: Icon(
+                _customAlarmUri != null ? Icons.music_note : Icons.music_off,
+                color: _customAlarmUri != null ? Colors.teal : null,
+              ),
               title: Text(
                 _customAlarmUri == null
-                    ? 'No sound selected'
+                    ? 'Using device default alarm sound'
                     : p.basename(Uri.parse(_customAlarmUri!).path),
               ),
-              subtitle: const Text('Android custom ringtone from your phone'),
+              subtitle: _customAlarmUri == null
+                  ? const Text('Tap Import to use a custom MP3/WAV')
+                  : null,
             ),
             Row(
               children: [
@@ -243,7 +225,10 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
                 TextButton(
                   onPressed: _customAlarmUri == null
                       ? null
-                      : () => setState(() => _customAlarmUri = null),
+                      : () => setState(() {
+                            _customAlarmUri = null;
+                            _alarmTone = 'default';
+                          }),
                   child: const Text('Clear'),
                 ),
               ],
@@ -273,6 +258,16 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
             title: const Text('Hypertension'),
             value: _hypertension,
             onChanged: (v) => setState(() => _hypertension = v ?? false),
+          ),
+          CheckboxListTile(
+            title: const Text('Asma'),
+            value: _asma,
+            onChanged: (v) => setState(() => _asma = v ?? false),
+          ),
+          CheckboxListTile(
+            title: const Text('DPOC'),
+            value: _dopc,
+            onChanged: (v) => setState(() => _dopc = v ?? false),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -408,6 +403,8 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         hepaticDisease: _hepaticDisease,
         diabetes: _diabetes,
         hypertension: _hypertension,
+        asma: _asma,
+        dopc: _dopc,
         healthIssues: healthIssues,
         allergies: _allergies,
         medicalRestrictions: _medicalRestrictions,
@@ -427,6 +424,8 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         hepaticDisease: _hepaticDisease,
         diabetes: _diabetes,
         hypertension: _hypertension,
+        asma: _asma,
+        dopc: _dopc,
         healthIssues: healthIssues,
         allergies: _allergies,
         medicalRestrictions: _medicalRestrictions,
@@ -511,22 +510,6 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
     });
   }
 
-  List<_ToneOption> _toneOptions() {
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return const [
-        _ToneOption(value: 'default', label: 'Use app default'),
-        _ToneOption(value: 'alarm', label: 'System alarm style'),
-        _ToneOption(value: 'notification', label: 'System notification style'),
-        _ToneOption(value: 'custom', label: 'Imported sound'),
-      ];
-    }
-
-    return const [
-      _ToneOption(value: 'default', label: 'Use app default'),
-      _ToneOption(value: 'ios_pulse', label: 'iOS Pulse'),
-      _ToneOption(value: 'ios_beacon', label: 'iOS Beacon'),
-    ];
-  }
 
   ImageProvider? _photoProvider() {
     final path = _photoPath;
@@ -541,12 +524,6 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   }
 }
 
-class _ToneOption {
-  final String value;
-  final String label;
-
-  const _ToneOption({required this.value, required this.label});
-}
 
 class _RestrictionPickerDialog extends StatefulWidget {
   final List<String> options;
