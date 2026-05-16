@@ -14,6 +14,7 @@ DCI_IFRAME_SELECTOR = "iframe[src*='pesquisaMedicamento.jsf']"
 
 OUTPUT_DIR = Path(__file__).parent.parent / "outputs"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
 DCI_CHECKPOINT_PATH = OUTPUT_DIR / "dci_extraction_checkpoint.json"
 
 # VARIABLES
@@ -103,59 +104,62 @@ async def get_iframe_name():
 async def get_statistics():
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context()
-        page = await context.new_page()
-        await page.goto(STATISTICS_URL, wait_until="domcontentloaded")
-
         try:
-            await page.wait_for_selector(".count1", timeout=10000)
-        except PlaywrightTimeoutError:
-            await browser.close()
-            return statistics_infomed
-
-        async def _get_number_from_selector(sel: str) -> int:
-            # 1. Esperar que o seletor esteja visível
-            await page.wait_for_selector(sel, state="visible")
-            
-            # 2. Pequena pausa ou espera até a animação terminar. 
-            # O Infomed usa JS para animar. Vamos esperar até que o número seja "estável".
-            # Uma forma robusta é esperar 1-2 segundos ou verificar o conteúdo.
-            await page.wait_for_timeout(1500) # Espera 1.5 segundos para a animação concluir
-
-            el = await page.query_selector(sel)
-            if not el:
-                return 0
-            
-            # Usamos o inner_text() que é mais fiável para o que o utilizador vê
-            raw = await el.inner_text()
-            
-            import re
-            # Removemos tudo o que não seja dígito para evitar problemas com pontos/espaços
-            digits = "".join(re.findall(r'\d+', raw))
-            
+            context = await browser.new_context()
+            page = await context.new_page()
             try:
-                return int(digits) if digits else 0
-            except ValueError:
-                return 0
+                await page.goto(STATISTICS_URL, wait_until="domcontentloaded", timeout=60000)
+            except PlaywrightTimeoutError:
+                return statistics_infomed
 
-        dci_val = await _get_number_from_selector(".count1")
-        med_val = await _get_number_from_selector(".count2")
-        emp_val = await _get_number_from_selector(".count3")
+            try:
+                await page.wait_for_selector(".count1", timeout=10000)
+            except PlaywrightTimeoutError:
+                return statistics_infomed
 
-        # data: procurar dd/mm/yyyy em todo o HTML
-        content = await page.content()
-        import re
-        date_match = re.search(r"(\d{2}/\d{2}/\d{4})", content)
-        date_text = date_match.group(1) if date_match else ""
+            async def _get_number_from_selector(sel: str) -> int:
+                # 1. Esperar que o seletor esteja visível
+                await page.wait_for_selector(sel, state="visible")
+                
+                # 2. Pequena pausa ou espera até a animação terminar. 
+                # O Infomed usa JS para animar. Vamos esperar até que o número seja "estável".
+                # Uma forma robusta é esperar 1-2 segundos ou verificar o conteúdo.
+                await page.wait_for_timeout(1500) # Espera 1.5 segundos para a animação concluir
 
-        statistics_infomed[0] = dci_val
-        statistics_infomed[1] = med_val
-        statistics_infomed[2] = emp_val
-        statistics_infomed[3] = date_text
+                el = await page.query_selector(sel)
+                if not el:
+                    return 0
+                
+                # Usamos o inner_text() que é mais fiável para o que o utilizador vê
+                raw = await el.inner_text()
+                
+                import re
+                # Removemos tudo o que não seja dígito para evitar problemas com pontos/espaços
+                digits = "".join(re.findall(r'\d+', raw))
+                
+                try:
+                    return int(digits) if digits else 0
+                except ValueError:
+                    return 0
 
-        await browser.close()
-        return statistics_infomed
-    
+            dci_val = await _get_number_from_selector(".count1")
+            med_val = await _get_number_from_selector(".count2")
+            emp_val = await _get_number_from_selector(".count3")
+
+            # data: procurar dd/mm/yyyy em todo o HTML
+            content = await page.content()
+            import re
+            date_match = re.search(r"(\d{2}/\d{2}/\d{4})", content)
+            date_text = date_match.group(1) if date_match else ""
+
+            statistics_infomed[0] = dci_val
+            statistics_infomed[1] = med_val
+            statistics_infomed[2] = emp_val
+            statistics_infomed[3] = date_text
+
+            return statistics_infomed
+        finally:
+            await browser.close()  
         
 # EXPORT FUNCTIONS
 def export_dcis(dcis: Iterable[str], filename_prefix: str = "dcis_infomed", csv_option: bool = False) -> None:
@@ -273,6 +277,17 @@ def import_dcis_from_json(json_path: Path = OUTPUT_DIR / "dcis_infomed.json") ->
 
 def import_table_from_json(json_path: Path = OUTPUT_DIR / "medicamentos_infomed.json") -> list[dict]:
     """Importar tabela de medicamentos a partir de um ficheiro JSON exportado."""
+    if not json_path.exists():
+        raise FileNotFoundError(f"O ficheiro {json_path} não foi encontrado.")
+    
+    with json_path.open("r", encoding="utf-8") as json_file:
+        data = json.load(json_file)
+        records = data.get("records", [])
+        print(f"✓ Importação concluída: {len(records)} registos carregados de {json_path}")
+        return records
+    
+def import_informative_bill_from_json(json_path: Path = OUTPUT_DIR / "informative_bill_per_dci.json") -> list[dict]:
+    """Importar resumos do folheto informativo por DCI a partir de um ficheiro JSON exportado."""
     if not json_path.exists():
         raise FileNotFoundError(f"O ficheiro {json_path} não foi encontrado.")
     

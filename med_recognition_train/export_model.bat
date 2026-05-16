@@ -9,9 +9,9 @@ if "%~1"==" " (
     echo Uso: export_model.bat [nome_modelo.pt]
     echo Exemplo: export_model.bat med_recog_model.pt
     echo Padrao: med_recog_model.pt
-    python export_model.py
+    py -3.11 -m export_model
 ) else (
-    python export_model.py %~1
+    py -3.11 -m export_model %~1
 )
 
 pause

@@ -1,8 +1,8 @@
 
-safemed_med_recognition - v2 2026-04-13 2:13am
+safemed_med_recognition - v6 2026-05-13 8:13pm
 ==============================
 
-This dataset was exported via roboflow.com on April 15, 2026 at 12:04 AM GMT
+This dataset was exported via roboflow.com on May 13, 2026 at 9:26 PM GMT
 
 Roboflow is an end-to-end computer vision platform that helps you
 * collaborate with your team on computer vision projects
@@ -17,16 +17,16 @@ visit https://github.com/roboflow/notebooks
 
 To find over 100k other datasets and pre-trained models, visit https://universe.roboflow.com
 
-The dataset includes 79 images.
+The dataset includes 2022 images.
 SafeMed_med_recognition are annotated in YOLOv8 format.
 
 The following pre-processing was applied to each image:
 * Auto-orientation of pixel data (with EXIF-orientation stripping)
-* Resize to 640x640 (Fit (black edges))
+* Resize to 640x640 (Stretch)
 
-The following augmentation was applied to create 3 versions of each source image:
+The following augmentation was applied to create 2 versions of each source image:
 * Random rotation of between -15 and +15 degrees
-* Random brigthness adjustment of between -25 and +25 percent
-* Random Gaussian blur of between 0 and 2.5 pixels
+* Random brigthness adjustment of between -20 and +20 percent
+* Random Gaussian blur of between 0 and 1 pixels
 
 

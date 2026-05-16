@@ -9,31 +9,36 @@ O modelo foca-se na **deteção de objetos** (localização da caixa). A extraç
 
 <https://app.roboflow.com/luss-workspace-u3jzw/safemed_med_recognition-zcroy>
 
-<https://colab.research.google.com/github/EdjeElectronics/Train-and-Deploy-YOLO-Models/blob/main/Train_YOLO_Models.ipynb#scrollTo=8bbpob1gTPlo>
+É recomendado usar o Google Coolab com GPU Tesla T4 para treinar o modelo para melhores tempos de treino e poupar recursos. O notebook de treino está disponível aqui:
+
+<https://colab.research.google.com/drive/1052Gm3gbpe4vTrlUioCXPMUyKHFLhElh?usp=sharing>
+
+O modelo em formato .pt do med_recognition_model yolo11s pode ser encontrado aqui:
+`med_recognition_train/med_recognition_model.pt`
+
+O modelo exportado para formato TensorFlow Lite usado no flutter pode ser encontrado aqui (versões INT8, FLOAT16 e FLOAT32):
+`assets/yolo11s/med_recog_best_int8.tflite`
 
 ## 📊 Estatísticas do Dataset
-* **Total de Imagens:** 30 imagens (90 imagens apos augmentação)
+* **Total de Imagens:** 1233 imagens dataset (2022 imagens após augmentação 2x)
 * **Classes Identificadas:**
-  1. `caixa` (Embalagem exterior)
-  2. `blister` (Cartela de comprimidos)
-  3. `frasco` (Xaropes/Líquidos)
-  4. `tubo` (Pomadas/cremes)
+  1. `blister` (Cartela de comprimidos)
+  2. `box` (Embalagem exterior)
 
 ## 🛠️ Pipeline de Pre-processing & Augmentação
 Para garantir que a app funciona em condições reais (casa do utilizador), aplicámos as seguintes transformações:
 
 ### Pre-processing
 * **Auto-Orient:** Garante que as fotos tiradas em modo paisagem/retrato são lidas corretamente.
-* **Resize (Fit with black edges):** 640x640 pixels e com black edges para manter a proporção e não confundir o modelo com distorções.
+* **Resize (Stretch to 640x640 ):** 640x640 pixels e, como as imagens estão todas em formato 1:1, não há distorção.
 
 ### Augmentação (3x)
-* **Blur (2.5px):** Simula a falta de foco da câmara ou mãos trémulas.
-* **Brightness (+/- 25%):** Simula variações entre luz natural, lâmpadas de teto e ambientes escuros.
+* **Blur (1px):** Simula a falta de foco da câmara ou mãos trémulas.
+* **Brightness (+/- 20%):** Simula variações entre luz natural, lâmpadas de teto e ambientes escuros.
 * **Rotation (+/- 15°):** Compensa o ângulo em que o utilizador segura o telemóvel.
-* **Horizontal Flip:** Aumenta a diversidade de perspetiva dos logótipos das marcas.
 
 
 ## 📈 Train/Valid/Test Split
-* **Treino:** 70% 
-* **Validação:** 20% 
+* **Treino:** 78% 
+* **Validação:** 12% 
 * **Teste:** 10% 

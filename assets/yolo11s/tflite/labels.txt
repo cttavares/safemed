@@ -1,4 +1,2 @@
 blister
-caixa
-tubo
-tubo_efervescente
+box

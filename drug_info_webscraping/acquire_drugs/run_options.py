@@ -21,7 +21,12 @@ try:
         import_table_from_json,
         OUTPUT_DIR,
     )
-    from .flutter_exporter import export_to_flutter
+    from .flutter_exporter_json_format import (
+        export_to_flutter
+    )
+    from .sqlite_prepopulation_export_method import (
+        export_sqlite_database
+    )
 except Exception:
     from dci_scrapper import (
         get_statistics,
@@ -43,7 +48,12 @@ except Exception:
         import_table_from_json,
         OUTPUT_DIR,
     )
-    from flutter_exporter import export_to_flutter
+    from flutter_exporter_json_format import (
+        export_to_flutter
+    )
+    from sqlite_prepopulation_export_method import (
+        export_sqlite_database
+    )
 
 # CONSTANTS
 CSV_EXPORT_OPTION = True
@@ -76,8 +86,9 @@ async def main_menu():
         print(f"1. Executar protocolo completo")
         print(f"2. Testar funções separadas")
         print(f"3. Ver estatísticas atuais da base de dados do Infomed")
+        print(f"4. Criar SQLite para Flutter (outputs/medications_infarmed.sqlite)")
         print(f"0. Sair")
-        choice = read_choice("\nEscolha uma opção: ", {"0", "1", "2", "3"})
+        choice = read_choice("\nEscolha uma opção: ", {"0", "1", "2", "3", "4"})
 
         if choice == "1":
             print(f"Executar protocolo completo...\n")
@@ -92,6 +103,12 @@ async def main_menu():
             print(f"Número total de medicamentos: {statistics[1]}")
             print(f"Número total de apresentações: {statistics[2]}")
             print(f"Data da última atualização: {statistics[3]}\n")
+        elif choice == "4":
+            print(f"Criar SQLite para Flutter...\n")
+            try:
+                export_sqlite_database()
+            except Exception as e:
+                print(f"  [ERRO] Exportação SQLite: {e}")
         elif choice == "0":
             print(f"A sair...\n")
             return
