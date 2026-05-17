@@ -286,8 +286,8 @@ class MedicationExplorerCameraController extends ChangeNotifier {
       imageHeight: image.height,
       imageWidth: image.width,
       iouThreshold: 0.4,
-      confThreshold: 0.5,
-      classThreshold: 0.2,
+      confThreshold: 0.8,
+      classThreshold: 0.3,
     );
   }
 

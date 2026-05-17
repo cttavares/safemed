@@ -68,6 +68,39 @@ def _strip_code_fences(text: str) -> str:
 	return cleaned.strip()
 
 
+def _extract_json_from_text(text: str) -> str | None:
+	"""Try to extract the first balanced JSON object from a text blob.
+	Returns the JSON substring or None if not found.
+	"""
+	if not text:
+		return None
+	# Quick regex: find the first '{' and attempt to find a matching '}' by scanning
+	start_positions = [m.start() for m in re.finditer(r"\{", text)]
+	for start in start_positions:
+		stack = 0
+		for i in range(start, len(text)):
+			ch = text[i]
+			if ch == "{":
+				stack += 1
+			elif ch == "}":
+				stack -= 1
+				if stack == 0:
+					candidate = text[start:i + 1]
+					return candidate
+	return None
+
+
+def _log_raw_gemini_response(dci: str, medicine_name: str, text: str) -> None:
+	try:
+		out_dir = Path(__file__).parent.joinpath("outputs", "gemini_raw_responses")
+		out_dir.mkdir(parents=True, exist_ok=True)
+		safe_name = re.sub(r"[^0-9A-Za-z._-]", "_", f"{dci}_{medicine_name}")[:200]
+		path = out_dir.joinpath(f"{safe_name}.txt")
+		path.write_text(text[:20000], encoding="utf-8")
+	except Exception:
+		pass
+
+
 def _extract_pdf_text(pdf_bytes: bytes) -> str:
 	reader = None
 	try:
@@ -139,8 +172,17 @@ async def _ask_gemini_for_summary(dci: str, medicine_name: str, pdf_text: str) -
 		'  "indicacoes": ["indicação 1", "indicação 2"],\n'
 		'  "efeitos_indesejaveis": {"frequentes": ["efeito1"], "outros": ["efeito2"]},\n'
 		'  "conservacao": "como conservar",\n'
-		'  "aviso_critico": "aviso importante"\n'
+		'  "aviso_critico": "aviso importante",\n'
+		'  "idade_minima": 0,\n'
+		'  "gravidez_seguro": "sim|nao|condicionado",\n'
+		'  "gravidez_nota": "texto explicativo sobre gravidez (se aplicável)",\n'
+		'  "amamentacao_seguro": "sim|nao|condicionado",\n'
+		'  "amamentacao_nota": "texto explicativo sobre amamentação (se aplicável)"\n'
 		"}\n\n"
+		"INSTRUÇÕES IMPORTANTES:\n"
+		"- Retorna SOMENTE um objeto JSON válido com os campos indicados.\n"
+		"- Para os campos 'gravidez_seguro' e 'amamentacao_seguro' usa exatamente os valores: 'sim', 'nao' ou 'condicionado'.\n"
+		"- Para 'idade_minima' devolve um número inteiro quando possível, ou 0 se não houver indicação clara.\n\n"
 		"TEXTO DO FOLHETO:\n"
 		f"{texto_base}\n\n"
 		f"DCI identificada: {dci}\n"
@@ -155,9 +197,10 @@ async def _ask_gemini_for_summary(dci: str, medicine_name: str, pdf_text: str) -
 			}
 		],
 		"generationConfig": {
-			"temperature": 0.2,
-			"topP": 0.9,
-			"maxOutputTokens": 4096,
+			# prefer deterministic outputs and maximum allowed output
+			"temperature": 0.0,
+			"topP": 1.0,
+			"maxOutputTokens": 65536,
 		},
 	}
 
@@ -180,17 +223,66 @@ async def _ask_gemini_for_summary(dci: str, medicine_name: str, pdf_text: str) -
 		text_response = json.dumps(payload, ensure_ascii=False)
 
 	text_response = _strip_code_fences(text_response)
-	
+
+	# Log raw response for debugging (truncated)
+#	_log_raw_gemini_response(dci, medicine_name, text_response)
+
 	await asyncio.sleep(0.5)
-	
+
+	# First simple attempt: direct json.loads
 	try:
 		result = json.loads(text_response)
-		# Validar se temos os campos esperados, se não, retornar resumo
-		if not all(key in result for key in ["dci", "medicamento", "indicacoes"]):
-			return {"resumo": f"JSON incompleto do Gemini: {text_response[:500]}..."}
-		return result
 	except json.JSONDecodeError:
-		return {"resumo": f"JSON inválido do Gemini: {text_response[:500]}..."}
+		# Try to extract a JSON substring from the response
+		candidate = _extract_json_from_text(text_response)
+		if candidate:
+			try:
+				result = json.loads(candidate)
+			except json.JSONDecodeError:
+				result = None
+		else:
+			result = None
+
+	if not result:
+		# as a last-ditch effort, try to remove obvious trailing ellipses
+		cleaned = re.sub(r"\.\.\.+$", "", text_response).strip()
+		candidate = _extract_json_from_text(cleaned)
+		if candidate:
+			try:
+				result = json.loads(candidate)
+			except Exception:
+				result = None
+
+	if not result:
+		return {"resumo": f"JSON inválido do Gemini: {text_response[:1000]}..."}
+
+	# Validar se temos os campos mínimos esperados
+	if not all(key in result for key in ["dci", "medicamento", "indicacoes"]):
+		return {"resumo": f"JSON incompleto do Gemini: {text_response[:1000]}..."}
+
+	# Normalizar/garantir presença dos novos campos
+	# idade_minima: tentar converter para int se possível
+	if "idade_minima" in result:
+		try:
+			if result["idade_minima"] is None or result["idade_minima"] == "":
+				result["idade_minima"] = 0
+			else:
+				result["idade_minima"] = int(result["idade_minima"])
+		except Exception:
+			try:
+				digits = re.search(r"(\d+)", str(result.get("idade_minima", "")))
+				result["idade_minima"] = int(digits.group(1)) if digits else 0
+			except Exception:
+				result["idade_minima"] = 0
+	else:
+		result["idade_minima"] = 0
+
+	# garantir chaves de gravidez/amamentação com valores padrão se ausentes
+	for key in ["gravidez_seguro", "gravidez_nota", "amamentacao_seguro", "amamentacao_nota"]:
+		if key not in result:
+			result[key] = ""
+
+	return result
 
 
 async def extract_informative_bill_pdf_text_by_link_from_table(records: Iterable[dict], headless: bool = True, max_workers: int = 4) -> list[dict]:

@@ -2,12 +2,15 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
+import 'package:flutter_tts/flutter_tts.dart';
 
 import '../../models/medication_match.dart';
 import 'medication_explorer_camera_controller.dart';
 import 'medication_match_engine.dart';
 import '../scanner/bounding_box_painter.dart';
 import '../scanner/ocr_screen.dart';
+import '../../services/infarmed_medication_service.dart';
 
 enum _ExplorerMode { camera, manual }
 
@@ -34,6 +37,10 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
   String? _speechLocaleId;
 
   _ExplorerMode _mode = _ExplorerMode.camera;
+  final FlutterTts _flutterTts = FlutterTts();
+  String? _activeSpeechKey;
+  bool _isSpeaking = false;
+  int _speechRequestId = 0;
 
   @override
   void initState() {
@@ -45,6 +52,8 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
     _camera.addListener(_syncView);
     _matches.addListener(_syncView);
     unawaited(_camera.bootstrap());
+    unawaited(_flutterTts.setLanguage('pt-PT'));
+    unawaited(_flutterTts.setSpeechRate(0.5));
   }
 
   void _syncView() {
@@ -158,25 +167,20 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
     );
   }
 
-  Future<void> _toggleTorch() async {
-    await _camera.toggleTorch();
+  Future<void> _toggleCameraEnabled() async {
+    await _camera.toggleCameraEnabled();
   }
 
   Future<void> _switchCamera() async {
     await _camera.switchCamera();
   }
 
-  Future<void> _toggleCameraEnabled() async {
-    final nextValue = !_camera.cameraEnabled;
-    if (!nextValue) {
-      setState(() => _isListening = false);
-      await _speech.stop();
-    }
-    await _camera.setCameraEnabled(nextValue);
+  Future<void> _toggleTorch() async {
+    await _camera.toggleTorch();
   }
 
-  void _toggleLiveVision(bool value) {
-    unawaited(_camera.setLiveVisionEnabled(value));
+  Future<void> _toggleLiveVision(bool value) async {
+    await _camera.setLiveVisionEnabled(value);
   }
 
   void _enableCamera() {
@@ -189,18 +193,127 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
     _matches.removeListener(_syncView);
     _queryController.dispose();
     _speech.stop();
+    unawaited(_flutterTts.stop());
     unawaited(_camera.disposeResources());
     _matches.dispose();
     super.dispose();
   }
 
+  Future<void> _speak(String text) async {
+    await _speakText(text, speechKey: text);
+  }
+
+  List<String> _splitSpeechText(String text, {int maxLength = 140}) {
+    final normalized = text
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll('•', '.')
+        .trim();
+
+    if (normalized.isEmpty) return const [];
+
+    final chunks = <String>[];
+    final sentences = normalized.split(RegExp(r'(?<=[\.!?])\s+'));
+
+    for (final sentence in sentences) {
+      final trimmed = sentence.trim();
+      if (trimmed.isEmpty) continue;
+
+      if (trimmed.length <= maxLength) {
+        chunks.add(trimmed);
+        continue;
+      }
+
+      final parts = trimmed.split(RegExp(r'(?<=[,;:])\s+'));
+      var buffer = '';
+      for (final part in parts) {
+        final piece = part.trim();
+        if (piece.isEmpty) continue;
+        if (buffer.isEmpty) {
+          buffer = piece;
+          continue;
+        }
+
+        if ((buffer.length + piece.length + 1) > maxLength) {
+          chunks.add(buffer);
+          buffer = piece;
+        } else {
+          buffer = '$buffer $piece';
+        }
+      }
+
+      if (buffer.isNotEmpty) {
+        chunks.add(buffer);
+      }
+    }
+
+    return chunks.isEmpty ? [normalized] : chunks;
+  }
+
+  Future<void> _stopSpeech() async {
+    _speechRequestId++;
+    _activeSpeechKey = null;
+    if (mounted && _isSpeaking) {
+      setState(() => _isSpeaking = false);
+    }
+
+    try {
+      await _flutterTts.stop();
+    } catch (_) {}
+  }
+
+  Future<void> _speakText(String text, {required String speechKey}) async {
+    final chunks = _splitSpeechText(text);
+    if (chunks.isEmpty) return;
+
+    final requestId = ++_speechRequestId;
+    _activeSpeechKey = speechKey;
+    if (mounted) {
+      setState(() => _isSpeaking = true);
+    }
+
+    try {
+      await _flutterTts.stop();
+      await _flutterTts.awaitSpeakCompletion(true);
+
+      for (final chunk in chunks) {
+        if (requestId != _speechRequestId) return;
+        if (chunk.trim().isEmpty) continue;
+        await _flutterTts.speak(chunk);
+      }
+    } catch (_) {
+    } finally {
+      if (requestId == _speechRequestId) {
+        _activeSpeechKey = null;
+        if (mounted) {
+          setState(() => _isSpeaking = false);
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        await _stopSpeech();
+        if (context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Medication Explorer'),
         actions: [
+          IconButton(
+            icon: Icon(
+              _isSpeaking ? Icons.pause_circle_outline : Icons.volume_up,
+            ),
+            onPressed: _stopSpeech,
+            tooltip: 'Parar fala',
+          ),
           IconButton(
             icon: Icon(
               _camera.cameraEnabled ? Icons.videocam : Icons.videocam_off,
@@ -320,12 +433,19 @@ class _MedicationExplorerScreenState extends State<MedicationExplorerScreen> {
                 ..._matches.matches.map(
                   (match) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: _MatchCard(match: match),
+                    child: _MatchCard(
+                      match: match,
+                      onSpeakText: (text, key) => _speakText(text, speechKey: key),
+                      onStopSpeech: _stopSpeech,
+                      activeSpeechKey: _activeSpeechKey,
+                      isSpeaking: _isSpeaking,
+                    ),
                   ),
                 ),
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -919,8 +1039,18 @@ class _EmptyState extends StatelessWidget {
 
 class _MatchCard extends StatelessWidget {
   final MedicationMatch match;
+  final Future<void> Function(String text, String speechKey) onSpeakText;
+  final Future<void> Function() onStopSpeech;
+  final String? activeSpeechKey;
+  final bool isSpeaking;
 
-  const _MatchCard({required this.match});
+  const _MatchCard({
+    required this.match,
+    required this.onSpeakText,
+    required this.onStopSpeech,
+    required this.activeSpeechKey,
+    required this.isSpeaking,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -936,6 +1066,27 @@ class _MatchCard extends StatelessWidget {
       'barcode' => ('Barcode', Colors.indigo),
       _ => ('Match', theme.colorScheme.primary),
     };
+    final entry = match.entryId != null ? infarmedMedicationService.getEntryById(match.entryId!) : null;
+
+    // derive first 3 therapeutic indications if available
+    final indications = entry?.toInformativeBill().therapeuticIndications ?? <String>[];
+    final firstThreeIndications = indications.isNotEmpty ? indications.take(3).toList() : <String>[];
+    final speechBaseKey = match.entryId ?? match.name;
+    final substanceSpeech = entry == null
+      ? 'Substância ativa: ${match.name}'
+      : entry.idadeMinima != null
+        ? 'Substância ativa: ${entry.substanciaAtiva}. Idade mínima: ${entry.idadeMinima}.'
+        : 'Substância ativa: ${entry.substanciaAtiva}.';
+
+    Future<void> toggleSpeech(String suffix, String text) async {
+      final key = '$speechBaseKey:$suffix';
+      if (isSpeaking && activeSpeechKey == key) {
+        await onStopSpeech();
+      } else {
+        await onSpeakText(text, key);
+      }
+    }
+
     return Card(
       color: theme.colorScheme.surface,
       child: Padding(
@@ -955,12 +1106,410 @@ class _MatchCard extends StatelessWidget {
                   side: BorderSide(color: color.withOpacity(0.24)),
                   backgroundColor: color.withOpacity(0.08),
                 ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.volume_up),
+                  tooltip: 'Ler nome',
+                  onPressed: () => toggleSpeech('name', match.name),
+                ),
               ],
             ),
             const SizedBox(height: 4),
             Text(match.reason, style: theme.textTheme.bodySmall),
             const SizedBox(height: 4),
             Text(aliasText, style: theme.textTheme.bodySmall),
+            if (firstThreeIndications.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text('Indicações: ${firstThreeIndications.join(', ')}', style: theme.textTheme.bodySmall),
+            ],
+              if (match.entryId != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.open_in_new),
+                      tooltip: 'Abrir no Infarmed',
+                      onPressed: () async {
+                        final entry = infarmedMedicationService.getEntryById(match.entryId!);
+                        if (entry == null || entry.fiUrl.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Link Infarmed indisponível.')),
+                          );
+                          return;
+                        }
+
+                        final uri = Uri.tryParse(entry.fiUrl);
+                        if (uri == null || !(uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https'))) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('URL inválida')),
+                          );
+                          return;
+                        }
+
+                        try {
+                          final launched = await url_launcher.launchUrl(
+                            uri,
+                            mode: url_launcher.LaunchMode.externalApplication,
+                          );
+                          if (!launched) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Não foi possível abrir o link.')),
+                            );
+                          }
+                        } catch (_) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Não foi possível abrir o link.')),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () async {
+                        final entry = infarmedMedicationService.getEntryById(
+                          match.entryId!,
+                        );
+                        if (entry == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Detalhes não disponíveis.'),
+                            ),
+                          );
+                          return;
+                        }
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (ctx) {
+                            final bill = entry.toInformativeBill();
+                            final titleStyle = theme.textTheme.titleLarge?.copyWith(
+                              fontSize: 22,
+                            );
+                            final headingStyle = theme.textTheme.titleMedium
+                                ?.copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                );
+                            final boldStyle = TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            );
+                            final bodyStyle = theme.textTheme.bodyMedium?.copyWith(
+                              fontSize: 15,
+                            );
+                            final titleSpeechKey = '$speechBaseKey:title';
+
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                16.0,
+                                18.0,
+                                16.0,
+                                24.0,
+                              ),
+                              child: SingleChildScrollView(
+                                child: DefaultTextStyle.merge(
+                                  style: bodyStyle ?? const TextStyle(fontSize: 15),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 25),
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              entry.nomeComercial,
+                                              style: titleStyle?.copyWith(
+                                                color: const Color(
+                                                  0xFF594A9E,
+                                                ), // Roxo Deep Purple standard do Flutter
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 22,
+                                                letterSpacing:
+                                                    -0.5, // Letras ligeiramente mais juntas dá um aspeto premium
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.pause_circle_outline,
+                                              size: 22,
+                                            ),
+                                            tooltip: 'Parar fala',
+                                            onPressed: () async {
+                                              await onStopSpeech();
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Divider(
+                                        thickness: 1,
+                                        height: 1,
+                                        color: const Color(
+                                          0xFF594A9E,
+                                        ).withOpacity(0.22),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      // Disclaimer sobre a precisão e link para o folheto
+                                      Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              'Disclaimer: A informação apresentada é generalizada relativamente à substância ativa / DCI associada, não é 100% precisa e não substitui a consulta do folheto informativo oficial no INFOMED — recomenda-se vivamente consultar o folheto específico através do link de redirecionamento.',
+                                              style: bodyStyle?.copyWith(
+                                                fontStyle: FontStyle.italic,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.volume_up, size: 20),
+                                            tooltip: 'Ler disclaimer',
+                                            onPressed: () => toggleSpeech(
+                                              'disclaimer',
+                                              'Disclaimer: A informação apresentada é generalizada relativamente à substância ativa DCI associada, não é cem por cento precisa e não substitui a consulta do folheto informativo oficial no Infarmed. Recomenda-se vivamente consultar o folheto específico através do link de redirecionamento.',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // fiURL to open infomed page in browser
+                                      if (entry.fiUrl.isNotEmpty)
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: TextButton.icon(
+                                            onPressed: () async {
+                                              final raw = entry.fiUrl;
+                                              final uri = Uri.tryParse(raw);
+                                              if (uri == null || !(uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https'))) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('URL inválida')),
+                                                );
+                                                return;
+                                              }
+
+                                              try {
+                                                final launched = await url_launcher.launchUrl(
+                                                  uri,
+                                                  mode: url_launcher.LaunchMode.externalApplication,
+                                                );
+                                                if (!launched) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(content: Text('Não foi possível abrir o link: ${entry.fiUrl}')),
+                                                  );
+                                                }
+                                              } catch (_) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('Não foi possível abrir o link: ${entry.fiUrl}')),
+                                                );
+                                              }
+                                            },
+                                            icon: const Icon(Icons.open_in_new),
+                                            label: const Text('Ver no Infarmed'),
+                                          ),
+                                        ),
+                                      const SizedBox(height: 12),
+                                      Divider(
+                                        thickness: 1,
+                                        height: 1,
+                                        color: const Color(
+                                          0xFF594A9E,
+                                        ).withOpacity(0.22),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              'Substância ativa: ${entry.substanciaAtiva}',
+                                              style: boldStyle,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.volume_up, size: 20),
+                                            tooltip: 'Ler substância ativa',
+                                            onPressed: () => toggleSpeech('substance', substanceSpeech),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      if (entry.idadeMinima != null)
+                                        Text(
+                                          'Idade mínima: ${entry.idadeMinima}',
+                                          style: boldStyle,
+                                        ),
+                                      const SizedBox(height: 10),
+                                      Divider(
+                                        thickness: 1,
+                                        height: 1,
+                                        color: const Color(
+                                          0xFF594A9E,
+                                        ).withOpacity(0.22),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(child: Text('Indicações terapêuticas', style: headingStyle)),
+                                          IconButton(
+                                            icon: const Icon(Icons.volume_up, size: 20),
+                                            tooltip: 'Ler indicações',
+                                            onPressed: () => toggleSpeech(
+                                              'indications',
+                                              bill.therapeuticIndications.isEmpty
+                                                  ? 'Indicações terapêuticas não disponíveis.'
+                                                  : 'Indicações terapêuticas. ${bill.therapeuticIndications.join('. ')}',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      if (bill.therapeuticIndications.isEmpty)
+                                        Text('Não disponíveis', style: bodyStyle)
+                                      else
+                                        ...bill.therapeuticIndications.map(
+                                          (t) => Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 2.0,
+                                            ),
+                                            child: Text('• $t', style: bodyStyle),
+                                          ),
+                                        ),
+                                      const SizedBox(height: 12),
+                                      Divider(
+                                        thickness: 1,
+                                        height: 1,
+                                        color: const Color(
+                                          0xFF594A9E,
+                                        ).withOpacity(0.22),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(child: Text('Efeitos adversos (resumo)', style: headingStyle)),
+                                          IconButton(
+                                            icon: const Icon(Icons.volume_up, size: 20),
+                                            tooltip: 'Ler efeitos adversos',
+                                            onPressed: () {
+                                              final adverseItems = bill.adverseReactions
+                                                  .expand(
+                                                    (a) => [
+                                                      ...a.frequent,
+                                                      ...a.other,
+                                                    ],
+                                                  )
+                                                  .map((item) => item.trim())
+                                                  .where((item) => item.isNotEmpty)
+                                                  .toList();
+                                              toggleSpeech(
+                                                'adverse',
+                                                adverseItems.isEmpty
+                                                    ? 'Efeitos adversos não disponíveis.'
+                                                    : 'Efeitos adversos. ${adverseItems.join('. ')}',
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      if (bill.adverseReactions.isEmpty)
+                                        Text('Não disponíveis', style: bodyStyle)
+                                      else
+                                        ...bill.adverseReactions.map(
+                                          (a) => Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 2.0,
+                                            ),
+                                            child: Text(
+                                              a.frequent.isNotEmpty
+                                                  ? a.frequent
+                                                        .map(
+                                                          (item) =>
+                                                              '• ${item.trim()}',
+                                                        )
+                                                        .join('\n')
+                                                  : a.other
+                                                        .map(
+                                                          (item) =>
+                                                              '• ${item.trim()}',
+                                                        )
+                                                        .join('\n'),
+                                              style: bodyStyle,
+                                            ),
+                                          ),
+                                        ),
+                                      const SizedBox(height: 12),
+                                      Divider(
+                                        thickness: 1,
+                                        height: 1,
+                                        color: const Color(
+                                          0xFF594A9E,
+                                        ).withOpacity(0.22),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(child: Text('Classificação de risco para gravidez e amamentação', style: headingStyle)),
+                                          IconButton(
+                                            icon: const Icon(Icons.volume_up, size: 20),
+                                            tooltip: 'Ler classificação de risco',
+                                            onPressed: () => toggleSpeech(
+                                              'risk',
+                                              [
+                                                'Gravidez: ${entry.pregnancyRiskText}',
+                                                if (entry.pregnancyWarning.isNotEmpty)
+                                                  'Nota de gravidez: ${entry.pregnancyWarning}',
+                                                'Amamentação: ${entry.breastfeedingRisk}',
+                                                if (entry.breastfeedingNote.isNotEmpty)
+                                                  'Nota de amamentação: ${entry.breastfeedingNote}',
+                                              ].join('. '),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Gravidez: ${entry.pregnancyRiskText}',
+                                        style: boldStyle,
+                                      ),
+                                      if (entry.pregnancyWarning.isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Nota: ${entry.pregnancyWarning}',
+                                          style: bodyStyle,
+                                        ),
+                                      ],
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Amamentação: ${entry.breastfeedingRisk}',
+                                        style: boldStyle,
+                                      ),
+                                      if (entry.breastfeedingNote.isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Nota: ${entry.breastfeedingNote}',
+                                          style: bodyStyle,
+                                        ),
+                                      ],
+                                      const SizedBox(height: 30),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      child: const Text('Detalhes'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

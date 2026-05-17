@@ -4,14 +4,15 @@
     {
       "dci": "Ácido acetilsalicílico",
       "medicamento": "Ácido Acetilsalicílico Lumec",
-      "pdf_url": "https://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml;jsessionid=M4iAY_oC5U_yvzvLEPJCMIinIiGDaXk5J9d_jAw-.fo2",
+      "pdf_url": "https://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml;jsessionid=Ep400_IFXxRj3TUza9Be6-Q1uU_w_CyOObvn1ZjN.fo2",
       "info_pdf": {
         "dci": "ácido acetilsalicílico",
         "medicamento": "Ácido Acetilsalicílico Lumec",
         "indicacoes": [
-          "Reduzir o risco de formação de coágulos sanguíneos para prevenir ataques cardíacos",
-          "Reduzir o risco de formação de coágulos sanguíneos para prevenir acidentes vasculares cerebrais",
-          "Reduzir o risco de formação de coágulos sanguíneos para prevenir problemas cardiovasculares em doentes que sofrem de angina estável ou instável",
+          "Reduzir o risco de formação de coágulos sanguíneos",
+          "Prevenir ataques cardíacos",
+          "Prevenir acidentes vasculares cerebrais",
+          "Prevenir problemas cardiovasculares em doentes que sofrem de angina estável ou instável",
           "Prevenir a formação de coágulos sanguíneos após certos tipos de cirurgia cardíaca para alargar ou desbloquear os vasos sanguíneos"
         ],
         "efeitos_indesejaveis": {
@@ -23,6 +24,13 @@
             "Aumento da tendência para hemorragia"
           ],
           "outros": [
+            "Sibilos repentinos",
+            "Inchaço dos lábios, da face ou do corpo",
+            "Erupção cutânea",
+            "Desmaios",
+            "Dificuldade em engolir (reação alérgica grave)",
+            "Vermelhidão da pele com bolhas ou descamação (eritema multiforme, síndrome de Stevens-Johnson ou síndrome de Lyell)",
+            "Hemorragia anormal (tosse com sangue, sangue no vómito ou na urina, fezes pretas)",
             "Urticária",
             "Nariz a pingar",
             "Dificuldade respiratória",
@@ -33,9 +41,8 @@
             "Ataques de asma",
             "Inflamação dos vasos sanguíneos",
             "Nódoas negras com manchas roxas (hemorragia cutânea)",
-            "Reações cutâneas graves (eritema multiforme, síndrome de Stevens-Johnson, síndrome de Lyell)",
-            "Reações de hipersensibilidade (inchaço dos lábios, face ou corpo, choque)",
-            "Síndrome de Reye (em crianças)",
+            "Reações de hipersensibilidade (inchaço, choque)",
+            "Síndrome de Reye",
             "Menstruação anormal, intensa ou prolongada",
             "Apitos nos ouvidos (zumbidos)",
             "Capacidade auditiva reduzida",
@@ -51,14 +58,19 @@
             "Níveis baixos de açúcar no sangue"
           ]
         },
-        "conservacao": "Manter fora da vista e do alcance das crianças. Não conservar acima de 30 °C. Não utilizar após o prazo de validade. Não deitar fora na canalização ou no lixo doméstico.",
-        "aviso_critico": "Ácido Acetilsalicílico Lumec não deve ser dado a crianças/adolescentes com idade inferior a 16 anos, a menos que a conselho de um médico, devido ao risco de Síndrome de Reye, uma doença rara e fatal. Se sentir sibilos repentinos, inchaço dos lábios/face/corpo, erupção cutânea, desmaios, dificuldade em engolir, vermelhidão da pele com bolhas/descamação, febre alta, dor nas articulações, ou hemorragia anormal (tosse com sangue, sangue no vómito/urina, fezes pretas), pare de tomar e contacte o seu médico imediatamente. Não tome mais de 100 mg por dia nos últimos 3 meses de gravidez, pois pode prejudicar o feto ou causar problemas no parto."
+        "conservacao": "Manter fora da vista e do alcance das crianças. Não conservar acima de 30 °C. Não utilizar após o prazo de validade. Não deitar fora na canalização ou lixo doméstico.",
+        "aviso_critico": "Não deve ser dado a crianças/adolescentes com idade inferior a 16 anos devido ao risco de Síndrome de Reye, a menos que a conselho médico. Não tomar mais de 100 mg por dia nos últimos 3 meses de gravidez, pois pode prejudicar o feto ou causar problemas no parto.",
+        "idade_minima": 16,
+        "gravidez_seguro": "condicionado",
+        "gravidez_nota": "Mulheres grávidas não devem tomar, a menos que aconselhado pelo médico. No último trimestre (últimos 3 meses), não tomar doses superiores a 100 mg por dia, pois pode prejudicar o feto (problemas renais e cardíacos, afetar a coagulação) ou causar problemas no parto. Doses baixas (até 100 mg/dia) no último trimestre requerem acompanhamento obstétrico rigoroso. Nos primeiros 6 meses, só tomar se absolutamente necessário e aconselhado pelo médico, usando a dose mais baixa pelo período mais curto. A partir das 20 semanas, se tomado por mais de alguns dias, pode causar problemas renais no feto ou estreitamento de um vaso sanguíneo no coração do bebé, podendo ser necessária monitorização adicional.",
+        "amamentacao_seguro": "condicionado",
+        "amamentacao_nota": "Mulheres a amamentar não devem tomar, a menos que aconselhadas pelo seu médico."
       }
     },
     {
       "dci": "Clorofenamina + Paracetamol",
       "medicamento": "Ben-u-gripe",
-      "pdf_url": "https://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml;jsessionid=ovVKis1T_iWibgebH0UPH2Tlk3S6qssj5Mt39fsG.fo2",
+      "pdf_url": "https://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml;jsessionid=tc5M6WSZKdz2XaydL6Zz9i3QR0OqCGy9w__EY3QO.fo2",
       "info_pdf": {
         "dci": "maleato de clorofenamina, paracetamol",
         "medicamento": "ben-u-gripe",
@@ -72,10 +84,16 @@
           "dor de cabeça e/ou febre"
         ],
         "efeitos_indesejaveis": {
-          "frequentes": [
-            "Sonolência",
+          "frequentes": [],
+          "outros": [
+            "erupção cutânea ou vermelhidão da pele",
+            "reação alérgica (inchaço repentino da face e pescoço, desconforto repentino com diminuição da pressão arterial)",
+            "reações cutâneas graves",
+            "perturbações da função hepática",
+            "níveis anormalmente baixos de certos glóbulos brancos ou plaquetas (podem resultar em hemorragia nasal ou gengival)",
+            "sonolência",
             "diminuição do estado de alerta",
-            "diminuição da pressão arterial ao levantar-se (que pode ser acompanhada de tonturas)",
+            "diminuição da pressão arterial ao levantar-se (com tonturas)",
             "boca seca",
             "distúrbios visuais",
             "retenção de urina",
@@ -86,21 +104,19 @@
             "tonturas",
             "alucinações",
             "dificuldade de coordenação de movimentos",
-            "tremores"
-          ],
-          "outros": [
-            "erupção cutânea ou vermelhidão da pele",
-            "reação alérgica (inchaço repentino da face e pescoço ou desconforto repentino com diminuição da pressão arterial)",
-            "reações cutâneas graves",
-            "perturbações da função hepática",
-            "níveis anormalmente baixos de certos glóbulos brancos ou de certas células sanguíneas (plaquetas, que podem resultar em hemorragia nasal ou gengival)",
-            "acidose metabólica"
+            "tremores",
+            "acidose metabólica (em doentes com doença grave que utilizam paracetamol)"
           ]
         },
-        "conservacao": "Manter este medicamento fora da vista e do alcance das crianças. Não utilizar após o prazo de validade. Conservar a temperatura inferior a 25ºC. Conservar na embalagem de origem para proteger da humidade.",
-        "aviso_critico": "Se não se sentir melhor ou se piorar após 4 dias, tem de consultar um médico. Não tome outros medicamentos com as mesmas substâncias para não ultrapassar as doses máximas recomendadas."
+        "conservacao": "Manter fora da vista e do alcance das crianças. Não utilizar após o prazo de validade. Conservar a temperatura inferior a 25ºC. Conservar na embalagem de origem para proteger da humidade.",
+        "aviso_critico": "Se não se sentir melhor ou se piorar após 4 dias, tem de consultar um médico. Não tome outros medicamentos com as mesmas substâncias para não ultrapassar as doses máximas recomendadas.",
+        "idade_minima": 12,
+        "gravidez_seguro": "condicionado",
+        "gravidez_nota": "Se necessário, pode ser tomado durante a gravidez, mas deve tomar a dose mais baixa possível e a duração da terapêutica deve ser limitada ao menor período de tempo possível. Não deve ser tomado em associação com outros medicamentos. Contacte o seu médico se os sintomas se mantiverem ou se precisar de tomar o medicamento com mais frequência. No final da gravidez, o uso excessivo pode causar efeitos neurológicos no recém-nascido. Deve sempre consultar o seu médico e nunca exceder a dose recomendada.",
+        "amamentacao_seguro": "nao",
+        "amamentacao_nota": "É muito provável que este medicamento passe para o leite materno. Dadas as suas propriedades sedativas que podem ter impacto no seu filho (letargia, perda de energia) ou, pelo contrário, propriedades excitantes (insónia), este medicamento não é recomendado caso esteja a amamentar."
       }
     }
   ],
-  "data_exportacao": "2026-05-09 02:05:02"
+  "data_exportacao": "2026-05-17 18:17:36"
 }

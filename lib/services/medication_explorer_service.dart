@@ -39,6 +39,7 @@ class MedicationExplorerService {
             aliases: [med.substanciaAtiva],
             reason: 'Correspondência na base de dados Infarmed.',
             source: 'infarmed',
+            entryId: med.id,
           ),
         );
       }

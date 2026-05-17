@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 import sqlite3
 
@@ -8,6 +9,7 @@ OUTPUT_DIR = Path(__file__).parent.parent / "outputs"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 DB_PATH = OUTPUT_DIR / "meds_infomed.sqlite"
+FLUTTER_ASSET_DB_PATH = Path(__file__).parent.parent.parent / "assets" / "meds_infarmed.sqlite"
 
 
 def create_connection():
@@ -47,6 +49,11 @@ def create_tables(conn: sqlite3.Connection) -> None:
             efeitos_json TEXT,
             conservacao TEXT,
             aviso_critico TEXT,
+            idade_minima INTEGER,
+            gravidez_seguro TEXT,
+            gravidez_nota TEXT,
+            amamentacao_seguro TEXT,
+            amamentacao_nota TEXT,
             source_key TEXT UNIQUE
         )
     """)
@@ -101,14 +108,20 @@ def insert_informative_bills(conn: sqlite3.Connection, records: list[dict]) -> N
             json.dumps(info_pdf.get("efeitos_indesejaveis", {}), ensure_ascii=False),
             info_pdf.get("conservacao", ""),
             info_pdf.get("aviso_critico", ""),
+            int(info_pdf.get("idade_minima") or 0),
+            info_pdf.get("gravidez_seguro", ""),
+            info_pdf.get("gravidez_nota", ""),
+            info_pdf.get("amamentacao_seguro", ""),
+            info_pdf.get("amamentacao_nota", ""),
             f"{record.get('dci', '')}|{record.get('medicamento', '')}",
         ))
 
     conn.executemany("""
         INSERT OR REPLACE INTO informative_bills (
             dci, medicamento, pdf_url, indicacoes_json, efeitos_json,
-            conservacao, aviso_critico, source_key
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            conservacao, aviso_critico, idade_minima, gravidez_seguro, gravidez_nota,
+            amamentacao_seguro, amamentacao_nota, source_key
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, rows)
 
 
@@ -127,6 +140,12 @@ def export_sqlite_database() -> None:
         insert_informative_bills(conn, informative_bills)
         conn.commit()
         print(f"✓ SQLite exportado para {DB_PATH}")
+
+        FLUTTER_ASSET_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(DB_PATH, FLUTTER_ASSET_DB_PATH)
+        print(f"✓ SQLite copiado para {FLUTTER_ASSET_DB_PATH}")
+    except Exception as e:
+        print(f"  [ERRO] Erro ao exportar para SQLite: {e}")
     finally:
         conn.close()
 
