@@ -1,0 +1,106 @@
+{
+  "total": 2,
+  "records": [
+    {
+      "dci": "Ácido acetilsalicílico",
+      "medicamento": "Ácido Acetilsalicílico Lumec",
+      "pdf_url": "https://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml;jsessionid=M4iAY_oC5U_yvzvLEPJCMIinIiGDaXk5J9d_jAw-.fo2",
+      "info_pdf": {
+        "dci": "ácido acetilsalicílico",
+        "medicamento": "Ácido Acetilsalicílico Lumec",
+        "indicacoes": [
+          "Reduzir o risco de formação de coágulos sanguíneos para prevenir ataques cardíacos",
+          "Reduzir o risco de formação de coágulos sanguíneos para prevenir acidentes vasculares cerebrais",
+          "Reduzir o risco de formação de coágulos sanguíneos para prevenir problemas cardiovasculares em doentes que sofrem de angina estável ou instável",
+          "Prevenir a formação de coágulos sanguíneos após certos tipos de cirurgia cardíaca para alargar ou desbloquear os vasos sanguíneos"
+        ],
+        "efeitos_indesejaveis": {
+          "frequentes": [
+            "Náuseas",
+            "Vómitos",
+            "Diarreia",
+            "Indigestão",
+            "Aumento da tendência para hemorragia"
+          ],
+          "outros": [
+            "Urticária",
+            "Nariz a pingar",
+            "Dificuldade respiratória",
+            "Hemorragia grave no estômago ou intestinos",
+            "Hemorragia cerebral",
+            "Alteração do número de células sanguíneas",
+            "Contração dos músculos que revestem as vias respiratórias (broncospasmo)",
+            "Ataques de asma",
+            "Inflamação dos vasos sanguíneos",
+            "Nódoas negras com manchas roxas (hemorragia cutânea)",
+            "Reações cutâneas graves (eritema multiforme, síndrome de Stevens-Johnson, síndrome de Lyell)",
+            "Reações de hipersensibilidade (inchaço dos lábios, face ou corpo, choque)",
+            "Síndrome de Reye (em crianças)",
+            "Menstruação anormal, intensa ou prolongada",
+            "Apitos nos ouvidos (zumbidos)",
+            "Capacidade auditiva reduzida",
+            "Dor de cabeça",
+            "Vertigem",
+            "Úlceras no estômago ou intestino delgado e perfuração",
+            "Tempo de hemorragia prolongado",
+            "Função renal comprometida",
+            "Insuficiência renal aguda",
+            "Função hepática comprometida",
+            "Aumento dos níveis de enzimas hepáticas em análises ao sangue",
+            "Nível elevado de ácido úrico no sangue",
+            "Níveis baixos de açúcar no sangue"
+          ]
+        },
+        "conservacao": "Manter fora da vista e do alcance das crianças. Não conservar acima de 30 °C. Não utilizar após o prazo de validade. Não deitar fora na canalização ou no lixo doméstico.",
+        "aviso_critico": "Ácido Acetilsalicílico Lumec não deve ser dado a crianças/adolescentes com idade inferior a 16 anos, a menos que a conselho de um médico, devido ao risco de Síndrome de Reye, uma doença rara e fatal. Se sentir sibilos repentinos, inchaço dos lábios/face/corpo, erupção cutânea, desmaios, dificuldade em engolir, vermelhidão da pele com bolhas/descamação, febre alta, dor nas articulações, ou hemorragia anormal (tosse com sangue, sangue no vómito/urina, fezes pretas), pare de tomar e contacte o seu médico imediatamente. Não tome mais de 100 mg por dia nos últimos 3 meses de gravidez, pois pode prejudicar o feto ou causar problemas no parto."
+      }
+    },
+    {
+      "dci": "Clorofenamina + Paracetamol",
+      "medicamento": "Ben-u-gripe",
+      "pdf_url": "https://extranet.infarmed.pt/INFOMED-fo/detalhes-medicamento.xhtml;jsessionid=ovVKis1T_iWibgebH0UPH2Tlk3S6qssj5Mt39fsG.fo2",
+      "info_pdf": {
+        "dci": "maleato de clorofenamina, paracetamol",
+        "medicamento": "ben-u-gripe",
+        "indicacoes": [
+          "constipações",
+          "rinites",
+          "nasofaringites",
+          "quadros gripais",
+          "corrimento nasal e olhos lacrimejantes",
+          "espirros",
+          "dor de cabeça e/ou febre"
+        ],
+        "efeitos_indesejaveis": {
+          "frequentes": [
+            "Sonolência",
+            "diminuição do estado de alerta",
+            "diminuição da pressão arterial ao levantar-se (que pode ser acompanhada de tonturas)",
+            "boca seca",
+            "distúrbios visuais",
+            "retenção de urina",
+            "prisão de ventre",
+            "palpitações",
+            "problemas de memória ou concentração",
+            "confusão",
+            "tonturas",
+            "alucinações",
+            "dificuldade de coordenação de movimentos",
+            "tremores"
+          ],
+          "outros": [
+            "erupção cutânea ou vermelhidão da pele",
+            "reação alérgica (inchaço repentino da face e pescoço ou desconforto repentino com diminuição da pressão arterial)",
+            "reações cutâneas graves",
+            "perturbações da função hepática",
+            "níveis anormalmente baixos de certos glóbulos brancos ou de certas células sanguíneas (plaquetas, que podem resultar em hemorragia nasal ou gengival)",
+            "acidose metabólica"
+          ]
+        },
+        "conservacao": "Manter este medicamento fora da vista e do alcance das crianças. Não utilizar após o prazo de validade. Conservar a temperatura inferior a 25ºC. Conservar na embalagem de origem para proteger da humidade.",
+        "aviso_critico": "Se não se sentir melhor ou se piorar após 4 dias, tem de consultar um médico. Não tome outros medicamentos com as mesmas substâncias para não ultrapassar as doses máximas recomendadas."
+      }
+    }
+  ],
+  "data_exportacao": "2026-05-09 02:05:02"
+}
