@@ -7,6 +7,8 @@ import json
 import os
 import re
 import time
+import socket
+import urllib.error
 import urllib.request
 from urllib.parse import urlencode, urljoin
 from collections import OrderedDict
@@ -16,9 +18,19 @@ from typing import Iterable
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 
 # CONSTANTS
-DETAIL_FI_SELECTOR = "a#detalheMedPBottomFiForm\\:detalheMedPBottomFiText"
+DETAIL_FI_SOURCES = (
+	("detalheMedPBottomFiForm", "a#detalheMedPBottomFiForm\\:detalheMedPBottomFiText"),
+	("detalheMedPBottomEmaForm", "a#detalheMedPBottomEmaForm\\:detalheMedPBottomEmaText"),
+)
 PDF_TEXT_LIMIT = 30000
 GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_REQUEST_TIMEOUT_SECONDS = 180
+GEMINI_MAX_ATTEMPTS = 4
+GEMINI_BASE_BACKOFF_SECONDS = 2.0
+
+
+_GEMINI_KEY_LOCK = asyncio.Lock()
+_GEMINI_KEY_INDEX = 0
 
 
 def _clean_text(value: str | None) -> str:
@@ -42,10 +54,12 @@ def _first_record_per_dci(records: Iterable[dict]) -> list[dict]:
 	return list(first_records.values())
 
 
-def _load_gemini_api_key() -> str:
-	api_key = os.getenv("GEMINI_API_KEY", "").strip()
-	if api_key:
-		return api_key
+def _load_gemini_api_keys() -> list[str]:
+	keys: list[str] = []
+	for env_name in ("GEMINI_API_KEY", "GEMINI_API_KEY_1", "GEMINI_API_KEY_2"):
+		value = os.getenv(env_name, "").strip()
+		if value and value not in keys:
+			keys.append(value)
 
 	env_path = Path(__file__).with_name(".env")
 	if env_path.exists():
@@ -54,10 +68,33 @@ def _load_gemini_api_key() -> str:
 			if not line or line.startswith("#") or "=" not in line:
 				continue
 			name, value = line.split("=", 1)
-			if name.strip() == "GEMINI_API_KEY":
-				return value.strip().strip('"').strip("'")
+			name = name.strip()
+			if name in {"GEMINI_API_KEY", "GEMINI_API_KEY_1", "GEMINI_API_KEY_2"}:
+				cleaned_value = value.strip().strip('"').strip("'")
+				if cleaned_value and cleaned_value not in keys:
+					keys.append(cleaned_value)
 
-	return ""
+	return keys
+
+
+async def _acquire_gemini_api_key() -> str:
+	keys = _load_gemini_api_keys()
+	if not keys:
+		return ""
+
+	global _GEMINI_KEY_INDEX
+	async with _GEMINI_KEY_LOCK:
+		key = keys[_GEMINI_KEY_INDEX % len(keys)]
+		_GEMINI_KEY_INDEX = (_GEMINI_KEY_INDEX + 1) % len(keys)
+		return key
+
+
+def _load_gemini_max_concurrent_requests() -> int:
+	raw_value = os.getenv("GEMINI_MAX_CONCURRENT_REQUESTS", "1").strip()
+	try:
+		return max(1, int(raw_value))
+	except ValueError:
+		return 1
 
 
 def _strip_code_fences(text: str) -> str:
@@ -158,9 +195,18 @@ def _download_pdf_bytes_from_form(form_action: str, form_data: dict[str, str], r
 		return response.read()
 
 
-async def _ask_gemini_for_summary(dci: str, medicine_name: str, pdf_text: str) -> dict:
-	api_key = _load_gemini_api_key()
-	if not api_key:
+def _looks_like_pdf(pdf_bytes: bytes) -> bool:
+	return pdf_bytes.startswith(b"%PDF-")
+
+
+async def _ask_gemini_for_summary(
+	dci: str,
+	medicine_name: str,
+	pdf_text: str,
+	request_semaphore: asyncio.Semaphore | None = None,
+) -> dict:
+	api_keys = _load_gemini_api_keys()
+	if not api_keys:
 		raise RuntimeError("GEMINI_API_KEY não encontrado no ambiente nem no ficheiro .env.")
 
 	texto_base = pdf_text[:PDF_TEXT_LIMIT]
@@ -170,6 +216,7 @@ async def _ask_gemini_for_summary(dci: str, medicine_name: str, pdf_text: str) -
 		'  "dci": "Substância Ativa",\n'
 		'  "medicamento": "Nome do Medicamento",\n'
 		'  "indicacoes": ["indicação 1", "indicação 2"],\n'
+		'  "indicacoes_key": ["palavra-chave curta 1", "palavra-chave curta 2"],\n'
 		'  "efeitos_indesejaveis": {"frequentes": ["efeito1"], "outros": ["efeito2"]},\n'
 		'  "conservacao": "como conservar",\n'
 		'  "aviso_critico": "aviso importante",\n'
@@ -182,7 +229,8 @@ async def _ask_gemini_for_summary(dci: str, medicine_name: str, pdf_text: str) -
 		"INSTRUÇÕES IMPORTANTES:\n"
 		"- Retorna SOMENTE um objeto JSON válido com os campos indicados.\n"
 		"- Para os campos 'gravidez_seguro' e 'amamentacao_seguro' usa exatamente os valores: 'sim', 'nao' ou 'condicionado'.\n"
-		"- Para 'idade_minima' devolve um número inteiro quando possível, ou 0 se não houver indicação clara.\n\n"
+		"- Para 'idade_minima' devolve um número inteiro quando possível, ou 0 se não houver indicação clara.\n"
+		"- Adiciona o campo 'indicacoes_key': uma lista com 1 ou 2 palavras por cada entrada em 'indicacoes'. Mantém a ordem correspondente. As palavras devem ser curtas, em português, preferencialmente substantivos ou termos compostos curtos, sem pontuação final.\n\n"
 		"TEXTO DO FOLHETO:\n"
 		f"{texto_base}\n\n"
 		f"DCI identificada: {dci}\n"
@@ -204,16 +252,42 @@ async def _ask_gemini_for_summary(dci: str, medicine_name: str, pdf_text: str) -
 		},
 	}
 
-	url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={api_key}"
-	request = urllib.request.Request(
-		url,
-		data=json.dumps(body).encode("utf-8"),
-		headers={"Content-Type": "application/json"},
-		method="POST",
-	)
+	payload = None
+	last_error: Exception | None = None
+	for attempt in range(1, GEMINI_MAX_ATTEMPTS + 1):
+		api_key = await _acquire_gemini_api_key()
+		if not api_key:
+			break
 
-	with urllib.request.urlopen(request, timeout=120) as response:
-		payload = json.loads(response.read().decode("utf-8"))
+		url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={api_key}"
+		request = urllib.request.Request(
+			url,
+			data=json.dumps(body).encode("utf-8"),
+			headers={"Content-Type": "application/json"},
+			method="POST",
+		)
+
+		try:
+			if request_semaphore is None:
+				with urllib.request.urlopen(request, timeout=GEMINI_REQUEST_TIMEOUT_SECONDS) as response:
+					payload = json.loads(response.read().decode("utf-8"))
+			else:
+				async with request_semaphore:
+					with urllib.request.urlopen(request, timeout=GEMINI_REQUEST_TIMEOUT_SECONDS) as response:
+						payload = json.loads(response.read().decode("utf-8"))
+			break
+		except urllib.error.HTTPError as exc:
+			last_error = exc
+			if exc.code != 429:
+				raise
+		except (urllib.error.URLError, socket.timeout, TimeoutError) as exc:
+			last_error = exc
+
+		if attempt < GEMINI_MAX_ATTEMPTS:
+			await asyncio.sleep(GEMINI_BASE_BACKOFF_SECONDS * attempt)
+
+	if payload is None:
+		raise RuntimeError(f"Erro ao enviar o texto para o Gemini: {last_error or 'resposta vazia'}")
 
 	text_response = ""
 	try:
@@ -295,6 +369,8 @@ async def extract_informative_bill_pdf_text_by_link_from_table(records: Iterable
 	if not selected_records:
 		return []
 
+	gemini_request_semaphore = asyncio.Semaphore(_load_gemini_max_concurrent_requests())
+
 	max_workers = max(1, min(max_workers, len(selected_records)))
 	results_map: dict[int, dict] = {}
 	inicio = time.monotonic()
@@ -328,6 +404,17 @@ async def extract_informative_bill_pdf_text_by_link_from_table(records: Iterable
 
 		try:
 			await page.goto(info_url, wait_until="domcontentloaded")
+			try:
+				await page.wait_for_load_state("networkidle", timeout=10000)
+			except Exception:
+				pass
+			try:
+				documents_link = page.get_by_role("link", name="Documentos para o Público")
+				if await documents_link.count() > 0:
+					await documents_link.first.click()
+					await page.wait_for_timeout(1000)
+			except Exception:
+				pass
 		except Exception:
 			return failed_result(record, "Não foi possível abrir a página de detalhe do medicamento.", info_url)
 
@@ -335,36 +422,108 @@ async def extract_informative_bill_pdf_text_by_link_from_table(records: Iterable
 		pdf_bytes = b""
 		try:
 			target_scope = page
-			try:
-				if await page.locator(DETAIL_FI_SELECTOR).count() == 0:
+			form_id = ""
+			link_selector = ""
+			for candidate_form_id, candidate_selector in DETAIL_FI_SOURCES:
+				try:
+					if await page.locator(candidate_selector).count() > 0:
+						target_scope = page
+						form_id = candidate_form_id
+						link_selector = candidate_selector
+						break
 					for frame in page.frames:
 						if frame == page.main_frame:
 							continue
-						if await frame.locator(DETAIL_FI_SELECTOR).count() > 0:
+						if await frame.locator(candidate_selector).count() > 0:
 							target_scope = frame
+							form_id = candidate_form_id
+							link_selector = candidate_selector
 							break
+					if form_id:
+						break
+				except Exception:
+					continue
+
+			if not form_id:
+				try:
+					all_form_ids = await page.evaluate(
+						"""
+						() => Array.from(document.querySelectorAll('form[id^="detalheMedPBottom"]')).map(form => form.id)
+						"""
+					)
+					for candidate_form_id in all_form_ids:
+						if candidate_form_id.endswith("FiForm") or candidate_form_id.endswith("EmaForm"):
+							candidate_selector = f"form#{candidate_form_id} a"
+							if await page.locator(candidate_selector).count() > 0:
+								target_scope = page
+								form_id = candidate_form_id
+								link_selector = candidate_selector
+								break
+				except Exception:
+					pass
+
+				if not form_id:
+					generic_candidates = (
+						("detalheMedPBottomFiForm", "a:has-text('Folheto Informativo')"),
+						("detalheMedPBottomEmaForm", "a:has-text('Folheto Informativo')"),
+						("detalheMedPBottomFiForm", "a[onclick*='detalheMedPBottomFiForm']"),
+						("detalheMedPBottomEmaForm", "a[onclick*='detalheMedPBottomEmaForm']"),
+					)
+					for candidate_form_id, candidate_selector in generic_candidates:
+						try:
+							if await page.locator(candidate_selector).count() > 0:
+								target_scope = page
+								form_id = candidate_form_id
+								link_selector = candidate_selector
+								break
+							for frame in page.frames:
+								if frame == page.main_frame:
+									continue
+								if await frame.locator(candidate_selector).count() > 0:
+									target_scope = frame
+									form_id = candidate_form_id
+									link_selector = candidate_selector
+									break
+							if form_id:
+								break
+						except Exception:
+							continue
+
+			if not form_id:
+				return failed_result(record, "Não foi possível localizar o folheto informativo na página de detalhe.", info_url)
+
+			link = target_scope.locator(link_selector).first
+			await link.wait_for(state="visible", timeout=15000)
+
+			try:
+				async with page.expect_download(timeout=15000) as download_info:
+					await link.click()
+				download = await download_info.value
+				download_path = await download.path()
+				if download_path:
+					pdf_bytes = Path(download_path).read_bytes()
+					pdf_url = download.url or pdf_url
+			except PlaywrightTimeoutError:
+				pass
 			except Exception:
 				pass
 
-			link = target_scope.locator(DETAIL_FI_SELECTOR).first
-			await link.wait_for(state="visible", timeout=15000)
-
-			form_locator = target_scope.locator("form#detalheMedPBottomFiForm").first
+			form_locator = target_scope.locator(f"form#{form_id}").first
 			form_payload = None
 			if await form_locator.count() > 0:
 				form_action = _clean_text(await form_locator.get_attribute("action") or "")
 				form_id_value = _clean_text(
-					await form_locator.locator("input[name='detalheMedPBottomFiForm']").first.get_attribute("value") or ""
+					await form_locator.locator(f"input[name='{form_id}']").first.get_attribute("value") or ""
 				)
 				view_state_value = _clean_text(
 					await form_locator.locator("input[name='javax.faces.ViewState']").first.get_attribute("value") or ""
 				)
-				link_id = "detalheMedPBottomFiForm:detalheMedPBottomFiText"
+				link_id = f"{form_id}:{form_id.replace('Form', 'Text')}"
 				if form_action:
 					form_payload = {
 						"action": form_action,
 						"data": {
-							"detalheMedPBottomFiForm": form_id_value or "detalheMedPBottomFiForm",
+							form_id: form_id_value or form_id,
 							"javax.faces.ViewState": view_state_value,
 							link_id: link_id,
 						},
@@ -412,6 +571,14 @@ async def extract_informative_bill_pdf_text_by_link_from_table(records: Iterable
 		except Exception:
 			pass
 
+		if pdf_bytes and not _looks_like_pdf(pdf_bytes):
+			snippet = pdf_bytes[:200].decode("utf-8", errors="replace").strip()
+			return failed_result(
+				record,
+				f"A resposta recebida não parece ser um PDF válido: {snippet[:160]}",
+				pdf_url,
+			)
+
 		pdf_text = ""
 		if not pdf_bytes and pdf_url:
 			try:
@@ -419,14 +586,19 @@ async def extract_informative_bill_pdf_text_by_link_from_table(records: Iterable
 			except Exception:
 				pdf_bytes = b""
 
-		if pdf_bytes:
+		if pdf_bytes and _looks_like_pdf(pdf_bytes):
 			pdf_text = _extract_pdf_text(pdf_bytes)
 
 		if not pdf_text.strip():
 			return failed_result(record, "Não foi possível extrair texto do PDF do folheto informativo.", pdf_url)
 
 		try:
-			info_pdf = await _ask_gemini_for_summary(dci, medicine_name, pdf_text)
+			info_pdf = await _ask_gemini_for_summary(
+				dci,
+				medicine_name,
+				pdf_text,
+				request_semaphore=gemini_request_semaphore,
+			)
 		except Exception as exc:
 			info_pdf = {"resumo": f"Erro ao enviar o texto para o Gemini: {exc}"}
 

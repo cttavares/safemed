@@ -10,7 +10,8 @@ import 'medication_explorer_camera_controller.dart';
 import 'medication_match_engine.dart';
 import '../scanner/bounding_box_painter.dart';
 import '../scanner/ocr_screen.dart';
-import '../../services/infarmed_medication_service.dart';
+import '../../services/infarmed_related_services/drug_regist_service.dart';
+import '../../services/infarmed_related_services/informative_bill_service.dart';
 
 enum _ExplorerMode { camera, manual }
 
@@ -1066,16 +1067,17 @@ class _MatchCard extends StatelessWidget {
       'barcode' => ('Barcode', Colors.indigo),
       _ => ('Match', theme.colorScheme.primary),
     };
-    final entry = match.entryId != null ? infarmedMedicationService.getEntryById(match.entryId!) : null;
+    final entry = match.entryId != null ? drugRegistService.getEntryById(match.entryId!) : null;
+    final bill = entry == null ? null : informativeBillService.resolveFor(entry);
 
     // derive first 3 therapeutic indications if available
-    final indications = entry?.toInformativeBill().therapeuticIndications ?? <String>[];
+    final indications = bill?.therapeuticIndications ?? <String>[];
     final firstThreeIndications = indications.isNotEmpty ? indications.take(3).toList() : <String>[];
     final speechBaseKey = match.entryId ?? match.name;
     final substanceSpeech = entry == null
       ? 'Substância ativa: ${match.name}'
-      : entry.idadeMinima != null
-        ? 'Substância ativa: ${entry.substanciaAtiva}. Idade mínima: ${entry.idadeMinima}.'
+      : bill?.minimumAge != null
+        ? 'Substância ativa: ${entry.substanciaAtiva}. Idade mínima: ${bill!.minimumAge}.'
         : 'Substância ativa: ${entry.substanciaAtiva}.';
 
     Future<void> toggleSpeech(String suffix, String text) async {
@@ -1133,15 +1135,16 @@ class _MatchCard extends StatelessWidget {
                       icon: const Icon(Icons.open_in_new),
                       tooltip: 'Abrir no Infarmed',
                       onPressed: () async {
-                        final entry = infarmedMedicationService.getEntryById(match.entryId!);
-                        if (entry == null || entry.fiUrl.isEmpty) {
+                        final entry = drugRegistService.getEntryById(match.entryId!);
+                        final rawUrl = entry?.infoUrl ?? '';
+                        if (rawUrl.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Link Infarmed indisponível.')),
                           );
                           return;
                         }
 
-                        final uri = Uri.tryParse(entry.fiUrl);
+                        final uri = Uri.tryParse(rawUrl);
                         if (uri == null || !(uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https'))) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('URL inválida')),
@@ -1169,7 +1172,7 @@ class _MatchCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     TextButton(
                       onPressed: () async {
-                        final entry = infarmedMedicationService.getEntryById(
+                        final entry = drugRegistService.getEntryById(
                           match.entryId!,
                         );
                         if (entry == null) {
@@ -1184,7 +1187,7 @@ class _MatchCard extends StatelessWidget {
                           context: context,
                           isScrollControlled: true,
                           builder: (ctx) {
-                            final bill = entry.toInformativeBill();
+                            final bill = informativeBillService.resolveFor(entry);
                             final titleStyle = theme.textTheme.titleLarge?.copyWith(
                               fontSize: 22,
                             );
@@ -1279,12 +1282,12 @@ class _MatchCard extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 8),
                                       // fiURL to open infomed page in browser
-                                      if (entry.fiUrl.isNotEmpty)
+                                      if (entry.infoUrl.isNotEmpty)
                                         Align(
                                           alignment: Alignment.centerLeft,
                                           child: TextButton.icon(
                                             onPressed: () async {
-                                              final raw = entry.fiUrl;
+                                              final raw = entry.infoUrl;
                                               final uri = Uri.tryParse(raw);
                                               if (uri == null || !(uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https'))) {
                                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1300,12 +1303,12 @@ class _MatchCard extends StatelessWidget {
                                                 );
                                                 if (!launched) {
                                                   ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(content: Text('Não foi possível abrir o link: ${entry.fiUrl}')),
+                                                    SnackBar(content: Text('Não foi possível abrir o link: $raw')),
                                                   );
                                                 }
                                               } catch (_) {
                                                 ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('Não foi possível abrir o link: ${entry.fiUrl}')),
+                                                  SnackBar(content: Text('Não foi possível abrir o link: $raw')),
                                                 );
                                               }
                                             },
@@ -1338,9 +1341,9 @@ class _MatchCard extends StatelessWidget {
                                         ],
                                       ),
                                       const SizedBox(height: 10),
-                                      if (entry.idadeMinima != null)
+                                      if (bill.minimumAge != null)
                                         Text(
-                                          'Idade mínima: ${entry.idadeMinima}',
+                                          'Idade mínima: ${bill.minimumAge}',
                                           style: boldStyle,
                                         ),
                                       const SizedBox(height: 10),
@@ -1380,42 +1383,39 @@ class _MatchCard extends StatelessWidget {
                                           ),
                                         ),
                                       const SizedBox(height: 12),
-                                      Divider(
-                                        thickness: 1,
-                                        height: 1,
-                                        color: const Color(
-                                          0xFF594A9E,
-                                        ).withOpacity(0.22),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        children: [
-                                          Expanded(child: Text('Efeitos adversos (resumo)', style: headingStyle)),
-                                          IconButton(
-                                            icon: const Icon(Icons.volume_up, size: 20),
-                                            tooltip: 'Ler efeitos adversos',
-                                            onPressed: () {
-                                              final adverseItems = bill.adverseReactions
-                                                  .expand(
-                                                    (a) => [
-                                                      ...a.frequent,
-                                                      ...a.other,
-                                                    ],
-                                                  )
-                                                  .map((item) => item.trim())
-                                                  .where((item) => item.isNotEmpty)
-                                                  .toList();
-                                              toggleSpeech(
-                                                'adverse',
-                                                adverseItems.isEmpty
-                                                    ? 'Efeitos adversos não disponíveis.'
-                                                    : 'Efeitos adversos. ${adverseItems.join('. ')}',
-                                              );
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Expanded(child: Text('Efeitos adversos (resumo)', style: headingStyle)),
+                                            IconButton(
+                                              icon: const Icon(Icons.volume_up, size: 20),
+                                              tooltip: 'Ler efeitos adversos',
+                                              onPressed: () {
+                                                final adverseItems = bill.adverseReactions
+                                                    .expand((a) => [...a.frequent, ...a.other])
+                                                    .map((item) => item.trim())
+                                                    .where((item) => item.isNotEmpty)
+                                                    .toList();
+
+                                                final parts = <String>[];
+                                                if (adverseItems.isNotEmpty) {
+                                                  parts.add('Efeitos adversos. ${adverseItems.join('. ')}');
+                                                } else {
+                                                  parts.add('Efeitos adversos não disponíveis.');
+                                                }
+
+                                                if ((bill.pregnancyNote ?? '').isNotEmpty) {
+                                                  parts.add('Nota de gravidez: ${bill.pregnancyNote}');
+                                                }
+                                                if ((bill.breastfeedingNote ?? '').isNotEmpty) {
+                                                  parts.add('Nota de amamentação: ${bill.breastfeedingNote}');
+                                                }
+
+                                                toggleSpeech('adverse', parts.join('. '));
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
                                       if (bill.adverseReactions.isEmpty)
                                         Text('Não disponíveis', style: bodyStyle)
                                       else
@@ -1460,12 +1460,12 @@ class _MatchCard extends StatelessWidget {
                                             onPressed: () => toggleSpeech(
                                               'risk',
                                               [
-                                                'Gravidez: ${entry.pregnancyRiskText}',
-                                                if (entry.pregnancyWarning.isNotEmpty)
-                                                  'Nota de gravidez: ${entry.pregnancyWarning}',
-                                                'Amamentação: ${entry.breastfeedingRisk}',
-                                                if (entry.breastfeedingNote.isNotEmpty)
-                                                  'Nota de amamentação: ${entry.breastfeedingNote}',
+                                                'Gravidez: ${bill.pregnancyRisk ?? ''}',
+                                                if ((bill.pregnancyNote ?? '').isNotEmpty)
+                                                  'Nota de gravidez: ${bill.pregnancyNote}',
+                                                'Amamentação: ${bill.breastfeedingRisk ?? ''}',
+                                                if ((bill.breastfeedingNote ?? '').isNotEmpty)
+                                                  'Nota de amamentação: ${bill.breastfeedingNote}',
                                               ].join('. '),
                                             ),
                                           ),
@@ -1473,25 +1473,25 @@ class _MatchCard extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        'Gravidez: ${entry.pregnancyRiskText}',
+                                        'Gravidez: ${bill.pregnancyRisk ?? ''}',
                                         style: boldStyle,
                                       ),
-                                      if (entry.pregnancyWarning.isNotEmpty) ...[
+                                      if ((bill.pregnancyNote ?? '').isNotEmpty) ...[
                                         const SizedBox(height: 6),
                                         Text(
-                                          'Nota: ${entry.pregnancyWarning}',
+                                          'Nota: ${bill.pregnancyNote}',
                                           style: bodyStyle,
                                         ),
                                       ],
                                       const SizedBox(height: 8),
                                       Text(
-                                        'Amamentação: ${entry.breastfeedingRisk}',
+                                        'Amamentação: ${bill.breastfeedingRisk ?? ''}',
                                         style: boldStyle,
                                       ),
-                                      if (entry.breastfeedingNote.isNotEmpty) ...[
+                                      if ((bill.breastfeedingNote ?? '').isNotEmpty) ...[
                                         const SizedBox(height: 6),
                                         Text(
-                                          'Nota: ${entry.breastfeedingNote}',
+                                          'Nota: ${bill.breastfeedingNote}',
                                           style: bodyStyle,
                                         ),
                                       ],

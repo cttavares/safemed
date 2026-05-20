@@ -1,7 +1,8 @@
 import '../data/medications_pt_br.dart' as br;
 import '../data/medications_pt_pt.dart' as pt;
 import '../models/medication_match.dart';
-import 'infarmed_medication_service.dart';
+import 'infarmed_related_services/drug_regist_service.dart';
+import 'infarmed_related_services/informative_bill_service.dart';
 
 class MedicationExplorerService {
   final List<_MedicationRecord> _records;
@@ -29,18 +30,41 @@ class MedicationExplorerService {
       }
     }
 
-    // ── Infarmed live database ────────────────────────────────────────────
-    if (infarmedMedicationService.isInitialized) {
-      for (final med in infarmedMedicationService.search(text)) {
-        matches.putIfAbsent(
-          med.nomeComercial,
-          () => MedicationMatch(
-            name: med.nomeComercial,
-            aliases: [med.substanciaAtiva],
-            reason: 'Correspondência na base de dados Infarmed.',
-            source: 'infarmed',
-            entryId: med.id.toString(),
-          ),
+    // ── SQLite-backed Infarmed data ───────────────────────────────────────
+    if (drugRegistService.isInitialized) {
+      for (final entry in drugRegistService.all) {
+        final bill = informativeBillService.resolveFor(entry);
+        final searchableText = _normalize(
+          [
+            entry.medName,
+            entry.dci,
+            entry.form,
+            entry.dosage,
+            entry.boxsize,
+            bill.therapeuticIndications.join(' '),
+            bill.criticalAdvices ?? '',
+            bill.howToStore ?? '',
+            bill.pregnancyRisk ?? '',
+            bill.pregnancyNote ?? '',
+            bill.breastfeedingRisk ?? '',
+            bill.breastfeedingNote ?? '',
+          ].join(' '),
+        );
+
+        if (!searchableText.contains(normalized)) continue;
+
+        final key = 'infarmed:${entry.id}';
+        matches[key] = MedicationMatch(
+          name: entry.medName,
+          aliases: [
+            entry.dci,
+            entry.form,
+            entry.dosage,
+            if (entry.boxsize.isNotEmpty) entry.boxsize,
+          ],
+          reason: 'Correspondência na base de dados Infarmed.',
+          source: 'infarmed',
+          entryId: entry.id.toString(),
         );
       }
     }
@@ -74,6 +98,26 @@ class MedicationExplorerService {
     if (normalized.isEmpty) return const [];
 
     final matches = <MedicationMatch>[];
+
+    if (drugRegistService.isInitialized) {
+      for (final entry in drugRegistService.all) {
+        if (_normalize(entry.cnpem.toString()) != normalized &&
+            _normalize(entry.medName) != normalized &&
+            _normalize(entry.dci) != normalized) {
+          continue;
+        }
+
+        matches.add(
+          MedicationMatch(
+            name: entry.medName,
+            aliases: [entry.dci, entry.form, entry.dosage],
+            reason: 'Matched by SQLite registry and CNPem lookup.',
+            source: 'barcode',
+            entryId: entry.id.toString(),
+          ),
+        );
+      }
+    }
 
     final mapped = _barcodeMap[normalized];
     if (mapped != null) {

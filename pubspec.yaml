@@ -77,7 +77,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/yolo11s/tflite/
-    - assets/medications_infarmed.json
     - assets/meds_infarmed.sqlite
     - assets/images/app_icon/app_icon_small_no-bg.png
     - assets/images/app_icon/app_icon_small.png
