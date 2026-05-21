@@ -75,12 +75,19 @@ class PlanMedication {
   final List<String> times;
   final String notes;
 
+  /// When set, the medication is scheduled by repeating every [intervalHours]
+  /// hours starting from [firstDoseAt], instead of using the fixed [times] list.
+  final int? intervalHours;
+  final DateTime? firstDoseAt;
+
   const PlanMedication({
     required this.id,
     required this.name,
     required this.dose,
     required this.times,
     required this.notes,
+    this.intervalHours,
+    this.firstDoseAt,
   });
 
   PlanMedication copyWith({
@@ -88,6 +95,8 @@ class PlanMedication {
     String? dose,
     List<String>? times,
     String? notes,
+    Object? intervalHours = _sentinel,
+    Object? firstDoseAt = _sentinel,
   }) {
     return PlanMedication(
       id: id,
@@ -95,6 +104,12 @@ class PlanMedication {
       dose: dose ?? this.dose,
       times: times ?? this.times,
       notes: notes ?? this.notes,
+      intervalHours: intervalHours == _sentinel
+          ? this.intervalHours
+          : intervalHours as int?,
+      firstDoseAt: firstDoseAt == _sentinel
+          ? this.firstDoseAt
+          : firstDoseAt as DateTime?,
     );
   }
 
@@ -107,6 +122,10 @@ class PlanMedication {
           .map((e) => e.toString())
           .toList(),
       notes: json['notes']?.toString() ?? '',
+      intervalHours: json['intervalHours'] as int?,
+      firstDoseAt: json['firstDoseAt'] == null
+          ? null
+          : DateTime.tryParse(json['firstDoseAt'].toString()),
     );
   }
 
@@ -117,6 +136,11 @@ class PlanMedication {
       'dose': dose,
       'times': times,
       'notes': notes,
+      if (intervalHours != null) 'intervalHours': intervalHours,
+      if (firstDoseAt != null) 'firstDoseAt': firstDoseAt!.toIso8601String(),
     };
   }
 }
+
+// Sentinel object used to distinguish "not provided" from explicit null in copyWith.
+const Object _sentinel = Object();

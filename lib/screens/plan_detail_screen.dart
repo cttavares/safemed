@@ -8,6 +8,9 @@ import 'package:safemed/screens/plan_form_screen.dart';
 import 'package:safemed/services/plan_store.dart';
 import 'package:safemed/services/profile_store.dart';
 import 'package:safemed/services/risk_engine.dart';
+import 'package:safemed/services/llm_review_service.dart';
+import 'package:safemed/screens/api_key_dialog.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:safemed/utils/plan_schedule.dart';
 
 class PlanDetailScreen extends StatelessWidget {
@@ -79,8 +82,26 @@ class PlanDetailScreen extends StatelessWidget {
               if (profile != null) ...[
                 const SizedBox(height: 16),
                 _RiskAlertsSection(plan: currentPlan, profile: profile),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    onPressed: () =>
+                        _reviewPlanWithAI(context, currentPlan, profile),
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text(
+                      'Revisão Inteligente do Plano',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
@@ -126,13 +147,49 @@ class PlanDetailScreen extends StatelessWidget {
     if (medication.dose.trim().isNotEmpty) {
       parts.add('Dose: ${medication.dose}');
     }
-    if (medication.times.isNotEmpty) {
+    if (medication.intervalHours != null && medication.firstDoseAt != null) {
+      final fda = medication.firstDoseAt!;
+      final y = fda.year.toString().padLeft(4, '0');
+      final mo = fda.month.toString().padLeft(2, '0');
+      final d = fda.day.toString().padLeft(2, '0');
+      final h = fda.hour.toString().padLeft(2, '0');
+      final mi = fda.minute.toString().padLeft(2, '0');
+      parts.add('Every ${medication.intervalHours}h from $y-$mo-$d $h:$mi');
+    } else if (medication.times.isNotEmpty) {
       parts.add('Times: ${medication.times.join(', ')}');
     }
     if (medication.notes.trim().isNotEmpty) {
       parts.add(medication.notes.trim());
     }
     return parts.join(' | ');
+  }
+
+  Future<void> _reviewPlanWithAI(
+    BuildContext context,
+    PrescriptionPlan plan,
+    Profile profile,
+  ) async {
+    // Check for API key
+    String? apiKey = await LlmReviewService.getSavedApiKey();
+    if (apiKey == null || apiKey.isEmpty) {
+      if (!context.mounted) return;
+      final saved = await ApiKeyDialog.show(context);
+      if (!saved) return;
+      apiKey = await LlmReviewService.getSavedApiKey();
+    }
+    if (apiKey == null || apiKey.isEmpty) return;
+
+    if (!context.mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => _AIReviewSheet(
+        plan: plan,
+        profile: profile,
+        apiKey: apiKey,
+      ),
+    );
   }
 
   Future<void> _confirmDelete(
@@ -166,6 +223,113 @@ class PlanDetailScreen extends StatelessWidget {
     }
   }
 }
+
+// ── AI Review Bottom Sheet ───────────────────────────────────────────────────
+
+class _AIReviewSheet extends StatefulWidget {
+  final PrescriptionPlan plan;
+  final Profile profile;
+  final String apiKey;
+
+  const _AIReviewSheet({
+    required this.plan,
+    required this.profile,
+    required this.apiKey,
+  });
+
+  @override
+  State<_AIReviewSheet> createState() => _AIReviewSheetState();
+}
+
+class _AIReviewSheetState extends State<_AIReviewSheet> {
+  late Future<String> _reviewFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _reviewFuture = LlmReviewService.reviewPlan(
+      widget.profile,
+      widget.plan,
+      widget.apiKey,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.deepPurple),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Revisão Inteligente',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          const Divider(),
+          Expanded(
+            child: FutureBuilder<String>(
+              future: _reviewFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(color: Colors.deepPurple),
+                        SizedBox(height: 16),
+                        Text('A analisar o plano de medicação...'),
+                      ],
+                    ),
+                  );
+                } else if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        'Erro ao analisar o plano:\n${snapshot.error}',
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                } else if (snapshot.hasData) {
+                  return Markdown(
+                    data: snapshot.data!,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    styleSheet: MarkdownStyleSheet(
+                      h1: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                      h2: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      h3: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  );
+                } else {
+                  return const SizedBox();
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 class _ProfileHeader extends StatelessWidget {
   final Profile profile;

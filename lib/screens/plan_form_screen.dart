@@ -223,7 +223,13 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
     if (medication.dose.trim().isNotEmpty) {
       parts.add('Dose: ${medication.dose}');
     }
-    if (medication.times.isNotEmpty) {
+    if (medication.intervalHours != null && medication.firstDoseAt != null) {
+      final fda = medication.firstDoseAt!;
+      final fdaStr =
+          '${fda.year.toString().padLeft(4,'0')}-${fda.month.toString().padLeft(2,'0')}-${fda.day.toString().padLeft(2,'0')} '
+          '${fda.hour.toString().padLeft(2,'0')}:${fda.minute.toString().padLeft(2,'0')}';
+      parts.add('Every ${medication.intervalHours}h starting $fdaStr');
+    } else if (medication.times.isNotEmpty) {
       parts.add('Times: ${medication.times.join(', ')}');
     }
     if (medication.notes.trim().isNotEmpty) {
@@ -252,13 +258,7 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
   Future<void> _editMedication(PlanMedication medication) async {
     final result = await showDialog<PlanMedication>(
       context: context,
-      builder: (_) => MedicationPickerDialog(
-        initialMedication: medication,
-        profileId: _profileId,
-        existingPlanMedications: _medications
-            .where((m) => m.id != medication.id)
-            .toList(),
-      ),
+      builder: (_) => _EditPlanMedicationDialog(medication: medication),
     );
 
     if (result != null) {
@@ -301,8 +301,13 @@ class _PlanFormScreenState extends State<PlanFormScreen> {
         _showSnack('Medication names cannot be empty.');
         return;
       }
-      if (medication.times.isEmpty) {
-        _showSnack('Each medication needs at least one time.');
+      final hasIntervalSchedule = medication.intervalHours != null &&
+          medication.intervalHours! > 0 &&
+          medication.firstDoseAt != null;
+      if (!hasIntervalSchedule && medication.times.isEmpty) {
+        _showSnack(
+          'Each medication needs at least one time (or an interval schedule).',
+        );
         return;
       }
     }
@@ -423,7 +428,14 @@ class _EditPlanMedicationDialogState extends State<_EditPlanMedicationDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _doseController;
   late final TextEditingController _notesController;
+  late final TextEditingController _intervalController;
+
+  // false = fixed times, true = interval-based
+  late bool _useInterval;
   late List<String> _times;
+  DateTime? _firstDoseAt;
+
+  static const int _previewDays = 7; // how many days to preview
 
   @override
   void initState() {
@@ -431,7 +443,13 @@ class _EditPlanMedicationDialogState extends State<_EditPlanMedicationDialog> {
     _nameController = TextEditingController(text: widget.medication.name);
     _doseController = TextEditingController(text: widget.medication.dose);
     _notesController = TextEditingController(text: widget.medication.notes);
+
+    _useInterval = widget.medication.intervalHours != null;
     _times = List.of(widget.medication.times);
+    _firstDoseAt = widget.medication.firstDoseAt;
+    _intervalController = TextEditingController(
+      text: widget.medication.intervalHours?.toString() ?? '',
+    );
   }
 
   @override
@@ -439,65 +457,195 @@ class _EditPlanMedicationDialogState extends State<_EditPlanMedicationDialog> {
     _nameController.dispose();
     _doseController.dispose();
     _notesController.dispose();
+    _intervalController.dispose();
     super.dispose();
+  }
+
+  int? get _parsedInterval {
+    final v = int.tryParse(_intervalController.text.trim());
+    if (v == null || v <= 0) return null;
+    return v;
+  }
+
+  /// Generates the list of scheduled DateTime values for the preview.
+  List<DateTime> _buildPreviewTimes() {
+    final interval = _parsedInterval;
+    final first = _firstDoseAt;
+    if (interval == null || first == null) return [];
+
+    final now = DateTime.now();
+    final cutoff = now.add(Duration(days: _previewDays));
+    final result = <DateTime>[];
+    var current = first;
+    while (!current.isAfter(cutoff)) {
+      if (current.isAfter(now)) {
+        result.add(current);
+      }
+      current = current.add(Duration(hours: interval));
+      if (result.length >= 10) break; // show at most 10 upcoming entries
+    }
+    return result;
   }
 
   @override
   Widget build(BuildContext context) {
+    final previewTimes = _useInterval ? _buildPreviewTimes() : <DateTime>[];
+
     return AlertDialog(
       title: const Text('Medication'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Name ──────────────────────────────────────────────
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _doseController,
-              decoration: const InputDecoration(
-                labelText: 'Dose',
-                hintText: 'e.g. 500 mg',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+
+              // ── Dose ──────────────────────────────────────────────
+              TextField(
+                controller: _doseController,
+                decoration: const InputDecoration(
+                  labelText: 'Dose',
+                  hintText: 'e.g. 500 mg',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final time in _times)
-                    Chip(
-                      label: Text(time),
-                      onDeleted: () => setState(
-                        () => _times = _times.where((t) => t != time).toList(),
-                      ),
-                    ),
-                  ActionChip(
-                    label: const Text('Add time'),
-                    onPressed: () => _addTime(context),
+              const SizedBox(height: 16),
+
+              // ── Schedule mode toggle ───────────────────────────────
+              const Text(
+                'Schedule mode',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    label: Text('Fixed times'),
+                    icon: Icon(Icons.access_time),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    label: Text('Interval'),
+                    icon: Icon(Icons.repeat),
                   ),
                 ],
+                selected: {_useInterval},
+                onSelectionChanged: (s) =>
+                    setState(() => _useInterval = s.first),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _notesController,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                hintText: 'Optional instructions',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+
+              // ── Fixed-times mode ──────────────────────────────────
+              if (!_useInterval) ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final time in _times)
+                        Chip(
+                          label: Text(time),
+                          onDeleted: () => setState(
+                            () => _times =
+                                _times.where((t) => t != time).toList(),
+                          ),
+                        ),
+                      ActionChip(
+                        label: const Text('Add time'),
+                        onPressed: () => _addTime(context),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              // ── Interval mode ─────────────────────────────────────
+              if (_useInterval) ...[
+                // First dose date + time picker
+                _DateTimeField(
+                  label: 'First dose on',
+                  value: _firstDoseAt,
+                  onChanged: (dt) => setState(() => _firstDoseAt = dt),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _intervalController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Hours between doses',
+                    hintText: 'e.g. 8',
+                    border: OutlineInputBorder(),
+                    suffixText: 'h',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 12),
+
+                // Preview list
+                if (previewTimes.isNotEmpty) ...[
+                  const Text(
+                    'Upcoming alarms (next 7 days)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  ...previewTimes.map(
+                    (dt) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.alarm, size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatDateTime(dt),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ] else if (_firstDoseAt != null &&
+                    _parsedInterval != null) ...[
+                  const Text(
+                    'No upcoming alarms in the next 7 days.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ] else ...[
+                  const Text(
+                    'Set first dose date/time and interval to preview alarms.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ],
+
+              const SizedBox(height: 12),
+
+              // ── Notes ──────────────────────────────────────────────
+              TextField(
+                controller: _notesController,
+                decoration: const InputDecoration(
+                  labelText: 'Notes',
+                  hintText: 'Optional instructions',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
               ),
-              maxLines: 2,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [
@@ -515,32 +663,122 @@ class _EditPlanMedicationDialogState extends State<_EditPlanMedicationDialog> {
       context: context,
       initialTime: TimeOfDay.now(),
     );
-    if (picked == null) {
-      return;
-    }
-    final label = _formatTime(picked);
-    if (_times.contains(label)) {
-      return;
-    }
+    if (picked == null) return;
+    final label = _formatTimeOfDay(picked);
+    if (_times.contains(label)) return;
     setState(() {
       _times = [..._times, label]..sort();
     });
   }
 
   void _save() {
-    final updated = widget.medication.copyWith(
-      name: _nameController.text.trim(),
-      dose: _doseController.text.trim(),
-      times: _times,
-      notes: _notesController.text.trim(),
-    );
+    PlanMedication updated;
+    if (_useInterval) {
+      final interval = _parsedInterval;
+      updated = widget.medication.copyWith(
+        name: _nameController.text.trim(),
+        dose: _doseController.text.trim(),
+        times: const [],
+        notes: _notesController.text.trim(),
+        intervalHours: interval,
+        firstDoseAt: _firstDoseAt,
+      );
+    } else {
+      updated = widget.medication.copyWith(
+        name: _nameController.text.trim(),
+        dose: _doseController.text.trim(),
+        times: _times,
+        notes: _notesController.text.trim(),
+        intervalHours: null,
+        firstDoseAt: null,
+      );
+    }
     Navigator.pop(context, updated);
   }
 
-  String _formatTime(TimeOfDay time) {
+  String _formatTimeOfDay(TimeOfDay time) {
     final h = time.hour.toString().padLeft(2, '0');
     final m = time.minute.toString().padLeft(2, '0');
     return '$h:$m';
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final y = dt.year.toString().padLeft(4, '0');
+    final mo = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final h = dt.hour.toString().padLeft(2, '0');
+    final mi = dt.minute.toString().padLeft(2, '0');
+    return '$y-$mo-$d  $h:$mi';
+  }
+}
+
+// ── Date+time picker field ────────────────────────────────────────────────────
+
+class _DateTimeField extends StatelessWidget {
+  final String label;
+  final DateTime? value;
+  final ValueChanged<DateTime?> onChanged;
+
+  const _DateTimeField({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = value == null ? '' : _formatDateTime(value!);
+    return TextField(
+      readOnly: true,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        suffixIcon: value != null
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () => onChanged(null),
+              )
+            : const Icon(Icons.event),
+      ),
+      controller: TextEditingController(text: text),
+      onTap: () async {
+        // Step 1: pick date
+        final now = DateTime.now();
+        final pickedDate = await showDatePicker(
+          context: context,
+          firstDate: DateTime(now.year - 1),
+          lastDate: DateTime(now.year + 5),
+          initialDate: value ?? now,
+        );
+        if (pickedDate == null || !context.mounted) return;
+
+        // Step 2: pick time
+        final pickedTime = await showTimePicker(
+          context: context,
+          initialTime: value != null
+              ? TimeOfDay(hour: value!.hour, minute: value!.minute)
+              : TimeOfDay.now(),
+        );
+        if (pickedTime == null) return;
+
+        onChanged(DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        ));
+      },
+    );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final y = dt.year.toString().padLeft(4, '0');
+    final mo = dt.month.toString().padLeft(2, '0');
+    final d = dt.day.toString().padLeft(2, '0');
+    final h = dt.hour.toString().padLeft(2, '0');
+    final mi = dt.minute.toString().padLeft(2, '0');
+    return '$y-$mo-$d  $h:$mi';
   }
 }
 

@@ -270,18 +270,61 @@ class MedicationAlarmScheduler {
         continue;
       }
 
-      final effectiveStart = planStart.isAfter(dayStart) ? planStart : dayStart;
-      final effectiveEnd = planEnd.isBefore(dayEnd) ? planEnd : dayEnd;
-      if (effectiveEnd.isBefore(effectiveStart)) {
+      final profile = profileById[plan.profileId];
+      if (profile == null) {
         continue;
       }
 
-      for (
-        DateTime day = effectiveStart;
-        !day.isAfter(effectiveEnd);
-        day = day.add(const Duration(days: 1))
-      ) {
-        for (final medication in plan.medications) {
+      for (final medication in plan.medications) {
+        final doseText = medication.dose.trim().isEmpty
+            ? ''
+            : ' (${medication.dose.trim()})';
+
+        // ── Interval-based scheduling ──────────────────────────────
+        if (medication.intervalHours != null &&
+            medication.firstDoseAt != null) {
+          final intervalH = medication.intervalHours!;
+          var current = medication.firstDoseAt!;
+
+          while (!current.isAfter(dayEnd)) {
+            if (current.isAfter(now) && !current.isAfter(planEnd)) {
+              final timeText =
+                  '${current.hour.toString().padLeft(2, '0')}:'
+                  '${current.minute.toString().padLeft(2, '0')}';
+              final dateText =
+                  '${current.year.toString().padLeft(4, '0')}-'
+                  '${current.month.toString().padLeft(2, '0')}-'
+                  '${current.day.toString().padLeft(2, '0')}';
+              alarms.add(
+                _ScheduledAlarm(
+                  uniqueKey:
+                      '${plan.id}|${medication.id}|${current.toIso8601String()}',
+                  profile: profile,
+                  scheduledAt: current,
+                  title: profile.name,
+                  body:
+                      'Plan: ${plan.name}\nMedication: ${medication.name}$doseText\nTake at: $dateText $timeText',
+                ),
+              );
+            }
+            current = current.add(Duration(hours: intervalH));
+          }
+          continue; // skip fixed-time loop for this medication
+        }
+
+        // ── Fixed-time scheduling ──────────────────────────────────
+        final effectiveStart =
+            planStart.isAfter(dayStart) ? planStart : dayStart;
+        final effectiveEnd = planEnd.isBefore(dayEnd) ? planEnd : dayEnd;
+        if (effectiveEnd.isBefore(effectiveStart)) {
+          continue;
+        }
+
+        for (
+          DateTime day = effectiveStart;
+          !day.isAfter(effectiveEnd);
+          day = day.add(const Duration(days: 1))
+        ) {
           for (final time in medication.times) {
             final parsed = _parseTime(time);
             if (parsed == null) {
@@ -300,14 +343,12 @@ class MedicationAlarmScheduler {
               continue;
             }
 
-            final profile = profileById[plan.profileId];
-            if (profile == null) {
-              continue;
-            }
-            final doseText = medication.dose.trim().isEmpty
-                ? ''
-                : ' (${medication.dose.trim()})';
-            final timeText = '${parsed.$1.toString().padLeft(2, '0')}:${parsed.$2.toString().padLeft(2, '0')}';
+            final timeText =
+                '${parsed.$1.toString().padLeft(2, '0')}:${parsed.$2.toString().padLeft(2, '0')}';
+            final dateText =
+                '${day.year.toString().padLeft(4, '0')}-'
+                '${day.month.toString().padLeft(2, '0')}-'
+                '${day.day.toString().padLeft(2, '0')}';
 
             alarms.add(
               _ScheduledAlarm(
@@ -317,7 +358,7 @@ class MedicationAlarmScheduler {
                 scheduledAt: scheduledAt,
                 title: profile.name,
                 body:
-                    'Plan: ${plan.name}\nMedication: ${medication.name}$doseText\nTake at: $timeText',
+                    'Plan: ${plan.name}\nMedication: ${medication.name}$doseText\nTake at: $dateText $timeText',
               ),
             );
           }
