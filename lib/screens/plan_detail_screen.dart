@@ -187,7 +187,7 @@ class PlanDetailScreen extends StatelessWidget {
       builder: (context) => _AIReviewSheet(
         plan: plan,
         profile: profile,
-        apiKey: apiKey,
+        apiKey: apiKey!,
       ),
     );
   }

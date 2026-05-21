@@ -1,4 +1,4 @@
-import 'package:google_generative_ai/generative_ai.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:safemed/models/prescription_plan.dart';
 import 'package:safemed/models/profile.dart';
@@ -61,9 +61,6 @@ class LlmReviewService {
     
     if (profile.sex == BiologicalSex.female) {
       buffer.writeln('- **Grávida:** ${profile.isPregnant ? "Sim" : "Não"}');
-      if (profile.isBreastfeeding) {
-        buffer.writeln('- **A amamentar:** Sim');
-      }
     }
     
     buffer.writeln('- **Categoria:** ${profile.category.name}');
@@ -74,8 +71,17 @@ class LlmReviewService {
       buffer.writeln('- **Alergias:** Nenhuma conhecida');
     }
     
-    if (profile.conditions.isNotEmpty) {
-      buffer.writeln('- **Condições/Doenças:** ${profile.conditions.join(", ")}');
+    final conditions = <String>[];
+    if (profile.renalDisease) conditions.add('Doença Renal');
+    if (profile.hepaticDisease) conditions.add('Doença Hepática');
+    if (profile.diabetes) conditions.add('Diabetes');
+    if (profile.hypertension) conditions.add('Hipertensão');
+    if (profile.asma) conditions.add('Asma');
+    if (profile.dopc) conditions.add('DPOC');
+    if (profile.healthIssues.trim().isNotEmpty) conditions.add(profile.healthIssues);
+
+    if (conditions.isNotEmpty) {
+      buffer.writeln('- **Condições/Doenças:** ${conditions.join(", ")}');
     } else {
       buffer.writeln('- **Condições/Doenças:** Nenhuma reportada');
     }
